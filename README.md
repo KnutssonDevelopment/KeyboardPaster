@@ -7,4 +7,4 @@ A Python package to type text using the keyboard module. This is useful in situa
 - Save string for future usage
 
 ## Future features
-Paster images a base64 code
+- Paste images as base64 code
