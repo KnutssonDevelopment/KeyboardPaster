@@ -4,8 +4,7 @@ import json
 import pkg_resources
 from pynput.keyboard import Controller, Key
 
-from kivy.app import App
-from kivy.factory import Factory
+from kivymd.app import MDApp
 from kivy.properties import ObjectProperty, StringProperty
 from kivy.uix.textinput import TextInput
 from kivy.lang import Builder
@@ -76,12 +75,16 @@ def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: 
     Clock.schedule_once(type_with_delay_callback, start_delay)
 
 
-class KeyboardPasterApp(App):
+class KeyboardPasterApp(MDApp):
     layout = StringProperty('EN_US')
     start_delay = ObjectProperty(None)
     layout = 'EN_US'
 
     def build(self):
+        self.theme_cls.primary_palette = "DeepPurple"  # Change to your desired primary color
+        self.theme_cls.accent_palette = "Amber"  # Change to your desired accent color
+        self.theme_cls.theme_style = "Light"  # Set the theme to either "Light" or "Dark"
+
         self.detect_keyboard_layout()
         #self.load_inputs()
         Clock.schedule_once(self.load_inputs, 1)

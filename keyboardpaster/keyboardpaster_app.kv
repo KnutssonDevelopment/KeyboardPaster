@@ -52,8 +52,9 @@ BoxLayout:
         height: "40dp"
         orientation: "horizontal"
 
-        Label:
+        MDLabel:
             text: "Keyboard layout:"
+            theme_text_color: "Secondary"
 
         Spinner:
             id: layout_spinner
@@ -61,10 +62,11 @@ BoxLayout:
             values: ["EN_US", "DA_DK"]
             on_text: app.set_layout(self.text)
 
-        Label:
-            text: "Start delay (seconds):"
+        MDLabel:
+            text: "Start delay:"
+            theme_text_color: "Secondary"
 
-        Slider:
+        MDSlider:
             id: start_delay
             min: 0
             max: 60
@@ -72,10 +74,11 @@ BoxLayout:
             value: 3
             orientation: 'horizontal'
 
-        Label:
+        MDLabel:
             text: str(int(start_delay.value)) + " seconds"
+            theme_text_color: "Secondary"
 
-        Button:
+        MDFlatButton:
             text: "Save Inputs"
             on_release: app.save_inputs()
 
