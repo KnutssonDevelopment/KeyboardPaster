@@ -3,7 +3,7 @@ import keyboard
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
-from keyboard_layout_detector import get_keyboard_layout
+from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 
 SPECIAL_CHARS_SHIFT = {
     'EN_US': {
