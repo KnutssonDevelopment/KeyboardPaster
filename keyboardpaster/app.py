@@ -86,5 +86,9 @@ class KeyboardPasterApp(App):
             self.layout = 'EN_US'
 
 
-if __name__ == "__main__":
+def main():
     KeyboardPasterApp().run()
+
+
+if __name__ == "__main__":
+    main()
