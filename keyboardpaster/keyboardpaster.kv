@@ -1,0 +1,24 @@
+BoxLayout:
+    orientation: "vertical"
+    spacing: 10
+    padding: 10
+
+    TextInput:
+        id: input_text
+        hint_text: "Enter text to be pasted"
+        multiline: False
+
+    BoxLayout:
+        size_hint_y: None
+        height: "40dp"
+        orientation: "horizontal"
+
+        Button:
+            text: "Paste Text"
+            on_press: app.paste_text()
+
+        Spinner:
+            id: layout_spinner
+            text: app.layout
+            values: ["EN_US", "DA_DK"]
+            on_text: app.set_layout(self.text)
