@@ -4,82 +4,95 @@
     size_hint_y: None
     height: "40dp"
 
-    TextInput:
+    MDTextField:
         id: _text_input
-        hint_text: root.text_input_id if not root.text_input_id else f"Enter text {root.text_input_id[-1]}"
+        hint_text: root.text_input_id if not root.text_input_id else f"Clipboard Slot {root.text_input_id[-1]}"
         multiline: False
 
-    Button:
+    MDFlatButton:
         text: "Paste"
         on_press: app.paste_text(_text_input.text)
 
 
-BoxLayout:
+MDBoxLayout:
     orientation: "vertical"
-    spacing: 10
-    padding: 10
 
-    ScrollView:
-        BoxLayout:
-            id: input_fields_container
-            orientation: "vertical"
+    MDTopAppBar:
+        MDLabel:
+            id: title_bar
+            text: "Keyboard Paster"
+            halign: "center"
+            theme_text_color: "Custom"
+            text_color: 1, 1, 1, 1
+            font_size: '30sp'
+
+    MDBoxLayout:
+        orientation: "vertical"
+
+        MDScrollView:
+            MDBoxLayout:
+                spacing: 10
+                padding: 50
+
+                id: input_fields_container
+                orientation: "vertical"
+                size_hint_y: None
+                height: self.minimum_height
+
+                InputFieldButton:
+                    text_input_id: "input_text_0"
+                InputFieldButton:
+                    text_input_id: "input_text_1"
+                InputFieldButton:
+                    text_input_id: "input_text_2"
+                InputFieldButton:
+                    text_input_id: "input_text_3"
+                InputFieldButton:
+                    text_input_id: "input_text_4"
+                InputFieldButton:
+                    text_input_id: "input_text_5"
+                InputFieldButton:
+                    text_input_id: "input_text_6"
+                InputFieldButton:
+                    text_input_id: "input_text_7"
+                InputFieldButton:
+                    text_input_id: "input_text_8"
+                InputFieldButton:
+                    text_input_id: "input_text_9"
+
+        MDBoxLayout:
+            spacing: 10
+            padding: 20
             size_hint_y: None
-            height: self.minimum_height
+            height: "40dp"
+            orientation: "horizontal"
 
-            InputFieldButton:
-                text_input_id: "input_text_0"
-            InputFieldButton:
-                text_input_id: "input_text_1"
-            InputFieldButton:
-                text_input_id: "input_text_2"
-            InputFieldButton:
-                text_input_id: "input_text_3"
-            InputFieldButton:
-                text_input_id: "input_text_4"
-            InputFieldButton:
-                text_input_id: "input_text_5"
-            InputFieldButton:
-                text_input_id: "input_text_6"
-            InputFieldButton:
-                text_input_id: "input_text_7"
-            InputFieldButton:
-                text_input_id: "input_text_8"
-            InputFieldButton:
-                text_input_id: "input_text_9"
+            MDLabel:
+                text: "Keyboard layout:"
+                theme_text_color: "Secondary"
 
-    BoxLayout:
-        size_hint_y: None
-        height: "40dp"
-        orientation: "horizontal"
+            Spinner:
+                id: layout_spinner
+                text: app.layout
+                values: ["EN_US", "DA_DK"]
+                on_text: app.set_layout(self.text)
 
-        MDLabel:
-            text: "Keyboard layout:"
-            theme_text_color: "Secondary"
+            MDLabel:
+                text: "Start delay:"
+                theme_text_color: "Secondary"
 
-        Spinner:
-            id: layout_spinner
-            text: app.layout
-            values: ["EN_US", "DA_DK"]
-            on_text: app.set_layout(self.text)
+            MDSlider:
+                id: start_delay
+                min: 0
+                max: 60
+                step: 1
+                value: 3
+                orientation: 'horizontal'
 
-        MDLabel:
-            text: "Start delay:"
-            theme_text_color: "Secondary"
+            MDLabel:
+                text: str(int(start_delay.value)) + " seconds"
+                theme_text_color: "Secondary"
 
-        MDSlider:
-            id: start_delay
-            min: 0
-            max: 60
-            step: 1
-            value: 3
-            orientation: 'horizontal'
-
-        MDLabel:
-            text: str(int(start_delay.value)) + " seconds"
-            theme_text_color: "Secondary"
-
-        MDFlatButton:
-            text: "Save Inputs"
-            on_release: app.save_inputs()
-
-
+            MDRaisedButton:
+                text: "Save Inputs"
+                on_release: app.save_inputs()

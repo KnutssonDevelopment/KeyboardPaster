@@ -9,6 +9,7 @@ from kivy.properties import ObjectProperty, StringProperty
 from kivy.uix.textinput import TextInput
 from kivy.lang import Builder
 from kivy.clock import Clock
+from kivy.core.window import Window
 
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 
@@ -88,6 +89,7 @@ class KeyboardPasterApp(MDApp):
         self.detect_keyboard_layout()
         #self.load_inputs()
         Clock.schedule_once(self.load_inputs, 1)
+        Window.size = (1000, 700)
 
         kv_file_path = pkg_resources.resource_filename(__name__, "keyboardpaster_app.kv")
         return Builder.load_file(kv_file_path)
