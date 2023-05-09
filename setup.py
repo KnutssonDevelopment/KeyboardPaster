@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="KeyboardPaster",
-    version="0.1.5",
+    version="0.1.6",
     author="Brian Knutsson",
     author_email="development@knutsson.it",
     description="A Python package to type text using the keyboard module",
@@ -28,7 +28,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        "keyboard",
+        "pynput",
         "kivy",
         "kivymd",
     ],

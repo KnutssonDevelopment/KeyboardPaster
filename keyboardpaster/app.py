@@ -1,10 +1,11 @@
-import os
 import time
 import re
-import keyboard
-from kivy.app import App
+from pynput.keyboard import Controller, Key
 import pkg_resources
+from kivy.app import App
 from kivy.lang import Builder
+from kivy.clock import Clock
+
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 
 SPECIAL_CHARS_SHIFT = {
@@ -24,6 +25,9 @@ SPECIAL_CHARS_SHIFT = {
     }
 }
 
+keyboard = Controller()
+
+
 def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US') -> None:
     """
     Types the given text using the keyboard module with an optional delay between keypresses.
@@ -36,15 +40,13 @@ def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US') -> None:
 
     for char in text:
         if char in special_chars_shift:
-            keyboard.press('shift')
-            keyboard.press(special_chars_shift[char])
-            keyboard.release(special_chars_shift[char])
-            keyboard.release('shift')
+            with keyboard.pressed(Key.shift):
+                keyboard.press(special_chars_shift[char])
+                keyboard.release(special_chars_shift[char])
         elif char.isupper():
-            keyboard.press('shift')
-            keyboard.press(char.lower())
-            keyboard.release(char.lower())
-            keyboard.release('shift')
+            with keyboard.pressed(Key.shift):
+                keyboard.press(char.lower())
+                keyboard.release(char.lower())
         else:
             keyboard.press(char)
             keyboard.release(char)
@@ -61,8 +63,11 @@ def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: 
     :param layout: The keyboard layout to use. Default is 'EN_US'.
     """
     print(f"Starting to type in {start_delay} seconds...")
-    time.sleep(start_delay)
-    type_string(text, delay=keypress_delay, layout=layout)
+
+    def type_with_delay_callback(dt):
+        type_string(text, delay=keypress_delay, layout=layout)
+
+    Clock.schedule_once(type_with_delay_callback, start_delay)
 
 
 class KeyboardPasterApp(App):
