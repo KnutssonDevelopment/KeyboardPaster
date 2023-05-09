@@ -1,0 +1,82 @@
+<InputFieldButton@BoxLayout>:
+    text_input_id: ""
+    orientation: "horizontal"
+    size_hint_y: None
+    height: "40dp"
+
+    TextInput:
+        id: _text_input
+        hint_text: root.text_input_id if not root.text_input_id else f"Enter text {root.text_input_id[-1]}"
+        multiline: False
+
+    Button:
+        text: "Paste"
+        on_press: app.paste_text(_text_input.text)
+
+
+BoxLayout:
+    orientation: "vertical"
+    spacing: 10
+    padding: 10
+
+    ScrollView:
+        BoxLayout:
+            id: input_fields_container
+            orientation: "vertical"
+            size_hint_y: None
+            height: self.minimum_height
+
+            InputFieldButton:
+                text_input_id: "input_text_0"
+            InputFieldButton:
+                text_input_id: "input_text_1"
+            InputFieldButton:
+                text_input_id: "input_text_2"
+            InputFieldButton:
+                text_input_id: "input_text_3"
+            InputFieldButton:
+                text_input_id: "input_text_4"
+            InputFieldButton:
+                text_input_id: "input_text_5"
+            InputFieldButton:
+                text_input_id: "input_text_6"
+            InputFieldButton:
+                text_input_id: "input_text_7"
+            InputFieldButton:
+                text_input_id: "input_text_8"
+            InputFieldButton:
+                text_input_id: "input_text_9"
+
+    BoxLayout:
+        size_hint_y: None
+        height: "40dp"
+        orientation: "horizontal"
+
+        Label:
+            text: "Keyboard layout:"
+
+        Spinner:
+            id: layout_spinner
+            text: app.layout
+            values: ["EN_US", "DA_DK"]
+            on_text: app.set_layout(self.text)
+
+        Label:
+            text: "Start delay (seconds):"
+
+        Slider:
+            id: start_delay
+            min: 0
+            max: 60
+            step: 1
+            value: 3
+            orientation: 'horizontal'
+
+        Label:
+            text: str(int(start_delay.value)) + " seconds"
+
+        Button:
+            text: "Save Inputs"
+            on_release: app.save_inputs()
+
+

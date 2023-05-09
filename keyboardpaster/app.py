@@ -1,8 +1,13 @@
 import time
 import re
-from pynput.keyboard import Controller, Key
+import json
 import pkg_resources
+from pynput.keyboard import Controller, Key
+
 from kivy.app import App
+from kivy.factory import Factory
+from kivy.properties import ObjectProperty, StringProperty
+from kivy.uix.textinput import TextInput
 from kivy.lang import Builder
 from kivy.clock import Clock
 
@@ -65,22 +70,59 @@ def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: 
     print(f"Starting to type in {start_delay} seconds...")
 
     def type_with_delay_callback(dt):
+        print(f"Typing: {text}")
         type_string(text, delay=keypress_delay, layout=layout)
 
     Clock.schedule_once(type_with_delay_callback, start_delay)
 
 
 class KeyboardPasterApp(App):
+    layout = StringProperty('EN_US')
+    start_delay = ObjectProperty(None)
     layout = 'EN_US'
 
     def build(self):
         self.detect_keyboard_layout()
-        kv_file_path = pkg_resources.resource_filename(__name__, "keyboardpaster.kv")
+        #self.load_inputs()
+        Clock.schedule_once(self.load_inputs, 1)
+
+        kv_file_path = pkg_resources.resource_filename(__name__, "keyboardpaster_app.kv")
         return Builder.load_file(kv_file_path)
 
-    def paste_text(self):
-        text_to_paste = self.root.ids.input_text.text
-        type_string_with_delay(text_to_paste, layout=self.layout)
+    def on_stop(self):
+        #self.save_inputs()
+        pass
+
+    def load_inputs(self, dt):
+        try:
+            with open("saved_inputs.json", "r") as file:
+                saved_inputs = json.load(file)
+
+            input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
+            input_fields = {x for x in input_field_buttons if isinstance(x, TextInput)}
+            for _, name in enumerate(saved_inputs):
+                for input_field in input_fields:
+                    if input_field.parent.text_input_id == name:
+                        input_field.text = saved_inputs[name]
+
+        except FileNotFoundError:
+            pass
+
+        except AttributeError:
+            pass
+
+    def save_inputs(self):
+        input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
+        input_fields = {x.parent.text_input_id:x.text for x in input_field_buttons if isinstance(x, TextInput) and x.text}
+        with open("saved_inputs.json", "w") as file:
+            json.dump(input_fields, file)
+
+    def paste_text(self, input_text):
+        if not input_text:
+            print("No text found")
+            return
+        start_delay = float(self.root.ids["start_delay"].value)
+        type_string_with_delay(input_text, start_delay=start_delay, layout=self.layout)
 
     def set_layout(self, layout):
         self.layout = layout

@@ -14,7 +14,7 @@ setup(
     url="https://github.com/KnutssonDevelopment/KeyboardPaster",
     packages=find_packages(),
     package_data={
-        "keyboardpaster": ["keyboardpaster.kv"],
+        "keyboardpaster": ["keyboardpaster_app.kv"],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
