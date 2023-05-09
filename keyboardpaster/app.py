@@ -1,7 +1,9 @@
+import os
 import time
+import re
 import keyboard
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
+import pkg_resources
 from kivy.lang import Builder
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 
@@ -68,7 +70,8 @@ class KeyboardPasterApp(App):
 
     def build(self):
         self.detect_keyboard_layout()
-        return Builder.load_file("keyboardpaster/keyboardpaster.kv")
+        kv_file_path = pkg_resources.resource_filename(__name__, "keyboardpaster.kv")
+        return Builder.load_file(kv_file_path)
 
     def paste_text(self):
         text_to_paste = self.root.ids.input_text.text
@@ -80,7 +83,7 @@ class KeyboardPasterApp(App):
     def detect_keyboard_layout(self):
         layout_code = get_keyboard_layout()
 
-        if layout_code.startswith('da'):  # Danish layout
+        if bool(re.match('da', layout_code, re.I)):  # Danish layout
             self.layout = 'DA_DK'
         else:  # Default to English (US) layout
             self.layout = 'EN_US'

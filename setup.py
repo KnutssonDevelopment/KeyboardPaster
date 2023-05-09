@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="KeyboardPaster",
-    version="0.1.4",
+    version="0.1.5",
     author="Brian Knutsson",
     author_email="development@knutsson.it",
     description="A Python package to type text using the keyboard module",
@@ -13,6 +13,9 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/KnutssonDevelopment/KeyboardPaster",
     packages=find_packages(),
+    package_data={
+        "keyboardpaster": ["keyboardpaster.kv"],
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: End Users/Desktop",
