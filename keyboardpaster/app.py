@@ -68,7 +68,7 @@ class KeyboardPasterApp(App):
 
     def build(self):
         self.detect_keyboard_layout()
-        return Builder.load_file("keyboardpaster.kv")
+        return Builder.load_file("KeyboardPaster/keyboardpaster.kv")
 
     def paste_text(self):
         text_to_paste = self.root.ids.input_text.text
