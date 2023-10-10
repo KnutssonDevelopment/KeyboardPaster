@@ -76,8 +76,8 @@ def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US', end_line=F
         time.sleep(delay)
 
     if end_line:
-        keyboard.press('\n')
-        keyboard.release('\n')
+        keyboard.press(Key.enter)
+        keyboard.release(Key.enter)
 
 
 def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: float = 0.1, layout: str = 'EN_US', end_line=False) -> None:
