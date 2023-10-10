@@ -12,3 +12,4 @@ A Python package to type text using the keyboard module. This is useful in situa
 ## Changes
 ### v0.1.9
 - FEATURE: Added the ability to send a return press after the text was typed
+- BUGFIX: You are not able to click anything in the app if the app does not have focus 

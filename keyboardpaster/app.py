@@ -13,6 +13,10 @@ from kivy.core.window import Window
 
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 
+# Fix Focus Behaviour
+import os
+os.environ["SDL_MOUSE_FOCUS_CLICKTHROUGH"] = '1'
+
 SPECIAL_CHARS_SHIFT = {
     'EN_US': {
         '~': '`', '!': '1', '@': '2', '#': '3', '$': '4',
