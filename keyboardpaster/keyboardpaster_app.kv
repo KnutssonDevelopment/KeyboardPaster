@@ -9,9 +9,13 @@
         hint_text: root.text_input_id if not root.text_input_id else f"Clipboard Slot {root.text_input_id[-1]}"
         multiline: False
 
+    MDCheckbox:
+        id: _checkbox
+        size_hint: 0.05, 1
+
     MDFlatButton:
         text: "Paste"
-        on_press: app.paste_text(_text_input.text)
+        on_press: app.paste_text(_text_input.text, _checkbox)
 
 
 MDBoxLayout:

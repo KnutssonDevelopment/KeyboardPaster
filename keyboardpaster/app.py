@@ -50,13 +50,14 @@ SPECIAL_CHARS_ALTGR = {
 keyboard = Controller()
 
 
-def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US') -> None:
+def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US', end_line=False) -> None:
     """
     Types the given text using the keyboard module with an optional delay between keypresses.
 
     :param text: The text to be typed.
     :param delay: The delay between keypresses in seconds. Default is 0.1 seconds.
     :param layout: The keyboard layout to use. Default is 'EN_US'.
+    :param end_line: Should end the paste with a ENTER press.
     """
     special_chars_shift = SPECIAL_CHARS_SHIFT.get(layout, SPECIAL_CHARS_SHIFT['EN_US'])
 
@@ -74,8 +75,12 @@ def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US') -> None:
             keyboard.release(char)
         time.sleep(delay)
 
+    if end_line:
+        keyboard.press('\n')
+        keyboard.release('\n')
 
-def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: float = 0.1, layout: str = 'EN_US') -> None:
+
+def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: float = 0.1, layout: str = 'EN_US', end_line=False) -> None:
     """
     Types the given text using the keyboard module after a defined start delay, with an optional delay between keypresses.
 
@@ -83,12 +88,13 @@ def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: 
     :param start_delay: The delay before typing starts in seconds. Default is 3.0 seconds.
     :param keypress_delay: The delay between keypresses in seconds. Default is 0.1 seconds.
     :param layout: The keyboard layout to use. Default is 'EN_US'.
+    :param end_line: Should end the paste with a ENTER press.
     """
     print(f"Starting to type in {start_delay} seconds...")
 
     def type_with_delay_callback(dt):
         print(f"Typing: {text}")
-        type_string(text, delay=keypress_delay, layout=layout)
+        type_string(text, delay=keypress_delay, layout=layout, end_line=end_line)
 
     Clock.schedule_once(type_with_delay_callback, start_delay)
 
@@ -139,12 +145,18 @@ class KeyboardPasterApp(MDApp):
         with open("saved_inputs.json", "w") as file:
             json.dump(input_fields, file)
 
-    def paste_text(self, input_text):
+    def paste_text(self, input_text, _checkbox):
         if not input_text:
             print("No text found")
             return
+
+        if _checkbox.state == "down":
+            end_line = True
+        else:
+            end_line = False
+
         start_delay = float(self.root.ids["start_delay"].value)
-        type_string_with_delay(input_text, start_delay=start_delay, layout=self.layout)
+        type_string_with_delay(input_text, start_delay=start_delay, layout=self.layout, end_line=end_line)
 
     def set_layout(self, layout):
         self.layout = layout

@@ -8,3 +8,7 @@ A Python package to type text using the keyboard module. This is useful in situa
 
 ## Future features
 - Paste images as base64 code
+
+## Changes
+### v0.1.9
+- FEATURE: Added the ability to send a return press after the text was typed
