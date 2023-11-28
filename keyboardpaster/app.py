@@ -32,15 +32,8 @@ SPECIAL_CHARS_SHIFT = {
         '*': "'"
     }
 }
-"""
-SPECIAL_CHARS_SPACE = {
-    'EN_US': {},
-    'DA_DK': {
-        '^': '¨'
-    }
-}
 
-SPECIAL_CHARS_ALTGR = {
+SPECIAL_CHARS_ALT_GR = {
     'EN_US': {},
     'DA_DK': {
         '$': '4', '£': '3', '@': '2', '{': '7', '}': '0', '[': '8',
@@ -48,30 +41,50 @@ SPECIAL_CHARS_ALTGR = {
     }
 }
 
-
+"""
+SPECIAL_CHARS_SPACE = {
+    'EN_US': {},
+    'DA_DK': {
+        '^': '¨'
+    }
+}
 """
 
 keyboard = Controller()
 
 
-def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US', end_line=False) -> None:
+def type_string(text: str, delay: float = 0.1, mod_delay: float = 0.1, layout: str = 'EN_US', end_line=False) -> None:
     """
     Types the given text using the keyboard module with an optional delay between keypresses.
 
     :param text: The text to be typed.
     :param delay: The delay between keypresses in seconds. Default is 0.1 seconds.
+    :param mod_delay: An extra delay added when using modifiers like shift and alt_gr. Default is 0.1 seconds.
     :param layout: The keyboard layout to use. Default is 'EN_US'.
     :param end_line: Should end the paste with a ENTER press.
     """
-    special_chars_shift = SPECIAL_CHARS_SHIFT.get(layout, SPECIAL_CHARS_SHIFT['EN_US'])
+
+    print(f"{layout=}")
+    special_chars_shift = SPECIAL_CHARS_SHIFT.get(layout, SPECIAL_CHARS_SHIFT[layout])
+    special_chars_alt_gr = SPECIAL_CHARS_ALT_GR.get(layout, SPECIAL_CHARS_ALT_GR[layout])
+
+    print(f"{special_chars_alt_gr}")
 
     for char in text:
         if char in special_chars_shift:
             with keyboard.pressed(Key.shift):
+                time.sleep(mod_delay)
                 keyboard.press(special_chars_shift[char])
                 keyboard.release(special_chars_shift[char])
+        elif char in special_chars_alt_gr:
+            print("Using ALT_GR")
+            with keyboard.pressed(Key.alt_gr):
+                time.sleep(mod_delay)
+                keyboard.press(special_chars_alt_gr[char])
+                keyboard.release(special_chars_alt_gr[char])
         elif char.isupper():
             with keyboard.pressed(Key.shift):
+                time.sleep(mod_delay)
                 keyboard.press(char.lower())
                 keyboard.release(char.lower())
         else:
@@ -84,7 +97,7 @@ def type_string(text: str, delay: float = 0.1, layout: str = 'EN_US', end_line=F
         keyboard.release(Key.enter)
 
 
-def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: float = 0.1, layout: str = 'EN_US', end_line=False) -> None:
+def type_string_with_delay(text: str, start_delay: float = 3.0, mod_delay: float = 0.1, keypress_delay: float = 0.1, layout: str = 'EN_US', end_line=False) -> None:
     """
     Types the given text using the keyboard module after a defined start delay, with an optional delay between keypresses.
 
@@ -97,8 +110,8 @@ def type_string_with_delay(text: str, start_delay: float = 3.0, keypress_delay: 
     print(f"Starting to type in {start_delay} seconds...")
 
     def type_with_delay_callback(dt):
-        print(f"Typing: {text}")
-        type_string(text, delay=keypress_delay, layout=layout, end_line=end_line)
+        # print(f"Typing: {text}")
+        type_string(text, delay=keypress_delay, mod_delay=mod_delay, layout=layout, end_line=end_line)
 
     Clock.schedule_once(type_with_delay_callback, start_delay)
 
@@ -114,7 +127,6 @@ class KeyboardPasterApp(MDApp):
         self.theme_cls.theme_style = "Light"  # Set the theme to either "Light" or "Dark"
 
         self.detect_keyboard_layout()
-        #self.load_inputs()
         Clock.schedule_once(self.load_inputs, 1)
         Window.size = (1000, 700)
 
@@ -160,10 +172,15 @@ class KeyboardPasterApp(MDApp):
             end_line = False
 
         start_delay = float(self.root.ids["start_delay"].value)
-        type_string_with_delay(input_text, start_delay=start_delay, layout=self.layout, end_line=end_line)
+        mod_delay = float(self.root.ids["mod_delay"].value)
+        type_string_with_delay(input_text, start_delay=start_delay, mod_delay=mod_delay, layout=self.layout, end_line=end_line)
 
     def set_layout(self, layout):
         self.layout = layout
+
+    def update_slider_label(self, value):
+        rounded_value = round(value, 1)
+        self.root.ids["mod_delay"].value = rounded_value
 
     def detect_keyboard_layout(self):
         layout_code = get_keyboard_layout()

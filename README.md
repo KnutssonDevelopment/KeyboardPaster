@@ -10,6 +10,10 @@ A Python package to type text using the keyboard module. This is useful in situa
 - Paste images as base64 code
 
 ## Changes
+### v0.1.10
+- FEATURE: Added a modifier delay to accommodate slow connects and bad remote applications
+- BUGFIX: Fixed the none-working sliders and buttons
+
 ### v0.1.9
 - FEATURE: Added the ability to send a return press after the text was typed
 - BUGFIX: You are not able to click anything in the app if the app does not have focus 

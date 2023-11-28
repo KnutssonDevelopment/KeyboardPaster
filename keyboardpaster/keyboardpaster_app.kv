@@ -67,7 +67,7 @@ MDBoxLayout:
         MDBoxLayout:
             spacing: 10
             padding: 20
-            size_hint_y: None
+            size_hint_y: 0.15
             height: "40dp"
             orientation: "horizontal"
 
@@ -88,14 +88,33 @@ MDBoxLayout:
             MDSlider:
                 id: start_delay
                 min: 0
-                max: 60
+                max: 10
                 step: 1
-                value: 3
-                orientation: 'horizontal'
+                value: 2
+                orientation: "horizontal"
 
             MDLabel:
                 text: str(int(start_delay.value)) + " seconds"
                 theme_text_color: "Secondary"
+
+            MDLabel:
+                text: "Modifier delay:"
+                theme_text_color: "Secondary"
+
+            MDSlider:
+                id: mod_delay
+                min: 0
+                max: 1
+                step: 0.1
+                value: 0.1
+                on_value: app.update_slider_label(self.value)
+                orientation: "horizontal"
+
+            MDLabel:
+                text: str(round(mod_delay.value, 1)) + " seconds"
+                theme_text_color: "Secondary"
+
+
 
             MDRaisedButton:
                 text: "Save Inputs"
