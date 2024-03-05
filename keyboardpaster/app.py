@@ -176,6 +176,9 @@ class KeyboardPasterApp(MDApp):
         except json.JSONDecodeError:
             # Handle cases where the JSON file is empty or corrupted
             pass
+        except ValueError:
+            # Handle cases where the JSON file is empty or corrupted
+            pass
 
     def save_inputs(self):
         # Assuming `input_field_buttons` contains all relevant child widgets,
