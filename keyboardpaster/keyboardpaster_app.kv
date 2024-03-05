@@ -11,12 +11,26 @@
         write_tab: False
 
     MDCheckbox:
-        id: _checkbox
+        id: _cb_execute
         size_hint: 0.05, 1
 
-    MDFlatButton:
+    MDLabel:
+        text: "Execute"
+        size_hint: 0.1, 1
+
+    MDCheckbox:
+        id: _cb_secret
+        size_hint: 0.05, 1
+        on_press: app.hide_text(_text_input, _cb_secret)
+        secret_checkbox: True
+
+    MDLabel:
+        text: "Secret"
+        size_hint: 0.1, 1
+
+    MDRaisedButton:
         text: "Paste"
-        on_press: app.paste_text(_text_input.text, _checkbox)
+        on_press: app.paste_text(_text_input.text, _cb_execute)
 
 
 MDBoxLayout:

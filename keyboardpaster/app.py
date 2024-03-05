@@ -10,6 +10,7 @@ from kivy.uix.textinput import TextInput
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivymd.uix.selectioncontrol.selectioncontrol import MDCheckbox
 
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 from keyboardpaster.modules.autoupdate import autoupdate
@@ -137,7 +138,7 @@ class KeyboardPasterApp(MDApp):
         return Builder.load_file(kv_file_path)
 
     def on_stop(self):
-        #self.save_inputs()
+        # self.save_inputs()
         pass
 
     def load_inputs(self, dt):
@@ -146,21 +147,58 @@ class KeyboardPasterApp(MDApp):
                 saved_inputs = json.load(file)
 
             input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
-            input_fields = {x for x in input_field_buttons if isinstance(x, TextInput)}
-            for _, name in enumerate(saved_inputs):
+            input_fields = [x for x in input_field_buttons if isinstance(x, TextInput)]
+            checkboxes = [x for x in input_field_buttons if isinstance(x, MDCheckbox) and getattr(x, 'secret_checkbox', False)]
+
+            for name, (text, secret_state) in saved_inputs.items():
+                # Set text for TextInput
                 for input_field in input_fields:
                     if input_field.parent.text_input_id == name:
-                        input_field.text = saved_inputs[name]
+                        input_field.text = text
+                        break  # Found the matching input field, no need to continue the loop
+
+                # Set state for corresponding checkbox and adjust text visibility
+                for checkbox in checkboxes:
+                    if checkbox.parent.text_input_id == name:
+                        checkbox.active = secret_state
+                        # Assuming MDTextField is a sibling or accessible as input_field here
+                        # and setting its "password" property based on checkbox state
+                        if secret_state:
+                            input_field.password = True  # Hide text if checkbox is checked
+                        else:
+                            input_field.password = False  # Show text otherwise
+                        break  # Found the matching checkbox, no need to continue the loop
 
         except FileNotFoundError:
             pass
-
         except AttributeError:
+            pass
+        except json.JSONDecodeError:
+            # Handle cases where the JSON file is empty or corrupted
             pass
 
     def save_inputs(self):
+        # Assuming `input_field_buttons` contains all relevant child widgets,
+        # including both TextInput and MDCheckbox widgets.
         input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
-        input_fields = {x.parent.text_input_id:x.text for x in input_field_buttons if isinstance(x, TextInput) and x.text}
+
+        # Build a dictionary with `text_input_id` as keys.
+        # The values will now be a tuple (or dict) with the text and the checkbox state.
+        input_fields = {}
+        for child in input_field_buttons:
+            if isinstance(child, TextInput) and child.text:
+                # Find the corresponding MDCheckbox for 'secret' state by looking at siblings or parent's children.
+                # Assuming MDCheckbox with secret_checkbox set to true is a sibling or closely located.
+                cb_secret = next((x for x in child.parent.children if isinstance(x, MDCheckbox) and getattr(x, 'secret_checkbox', False)), None)
+                if cb_secret is not None:
+                    secret_state = cb_secret.active  # Or use `.state` based on your checkbox implementation.
+                else:
+                    secret_state = False  # Default state if not found.
+
+                # Store the tuple of text and secret_state in the dictionary.
+                input_fields[child.parent.text_input_id] = (child.text, secret_state)
+
+        # Save the dictionary to a JSON file.
         with open("saved_inputs.json", "w") as file:
             json.dump(input_fields, file)
 
@@ -177,6 +215,13 @@ class KeyboardPasterApp(MDApp):
         start_delay = float(self.root.ids["start_delay"].value)
         mod_delay = float(self.root.ids["mod_delay"].value)
         type_string_with_delay(input_text, start_delay=start_delay, mod_delay=mod_delay, layout=self.layout, end_line=end_line)
+
+    @staticmethod
+    def hide_text(_input_text, _checkbox):
+        if _checkbox.state == "down":
+            _input_text.password = True
+        else:
+            _input_text.password = False
 
     def set_layout(self, layout):
         self.layout = layout

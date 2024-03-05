@@ -12,6 +12,9 @@ A Python package to type text using the keyboard module. This is useful in situa
 - Shift+Enter would move all inputs downwards and put the cursor into the next, now empty, field
 
 ## Changes
+### v0.1.14
+- FEATURE: Passwords can not be hidden in the UI
+
 ### v0.1.13
 - BUGFIX: Python executable was not correctly found by autoupdate
 
