@@ -1,73 +1,38 @@
-import os
-import glob
-import warnings
-import datetime
+import subprocess
+import requests
+import pkg_resources
 
 
-# function to self update itself. considering following conditions
-#   - the current user can write to this directory
-#   - running every run_time_difference seconds to avoid extra runs
-#   - avoiding concurrent runs
-#   - remote git repo is working.
-#   - git command line utility is present in that machine
+def check_for_update(package_name):
+    """Check PyPI for the latest version of the package."""
+    response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+    if response.status_code == 200:
+        latest_version = response.json()['info']['version']
+        return latest_version
+    else:
+        raise Exception("Failed to fetch package information from PyPI.")
 
-def self_update():
-    """A function to self update a python package's repo."""
-    current_repo_dir = os.path.dirname(__file__)
-    # add `lastrun.ignore` file in your project's .gitignore so that changes to this file is ignored
-    time_status_file = current_repo_dir + "/lastrun.ignore"
-    run_time_difference = 600000
-    # check if time_status_file file exists. if not try creating it. if unable to create, simply return without updating
+
+def update_package(package_name):
+    """Update the package using pip."""
+    subprocess.check_call([pkg_resources.python_interpreter, "-m", "pip", "install", "--upgrade", package_name])
+
+
+def autoupdate(package_name='keyboardpaster'):
+    """Main function to check and update package."""
     try:
-        with open(time_status_file, 'a'):
-            os.utime(time_status_file, None)
-    except EnvironmentError:
-        warnings.warn("WARNING: No WRITE permission on status file. Can not perform update")
-        return
+        installed_version = pkg_resources.get_distribution(package_name).version
+        latest_version = check_for_update(package_name)
 
-    with open(time_status_file, 'r') as status_file_read:
-        last_update_run = status_file_read.read().strip()
+        print(f"Installed version: {installed_version}")
+        print(f"Latest version: {latest_version}")
 
-    if not last_update_run:
-        last_update_run = 0
-    else:
-        last_update_run = int(last_update_run)
+        if latest_version > installed_version:
+            print(f"Updating {package_name} from version {installed_version} to {latest_version}...")
+            update_package(package_name)
+            print(f"{package_name} has been updated.")
+        else:
+            print(f"{package_name} is already up to date.")
 
-    current_time_since_epoch_milliseconds = int((datetime.datetime.utcnow() -
-                                                 datetime.datetime(1970, 1, 1)).total_seconds() * 1000)
-
-    # time difference between current run and last run is less than run_time_difference milli seconds, don't run
-    if (current_time_since_epoch_milliseconds - last_update_run) < run_time_difference:
-        return
-    else:
-        import fcntl
-        import subprocess
-        fp = open(time_status_file, 'w')
-        try:
-            fcntl.flock(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError:
-            fp.close()
-            return
-        git_up_cmd = 'cd {0} && git reset --hard HEAD >/dev/null 2>&1 && git clean -f -d >/dev/null 2>&1 ' \
-                     '&& git pull >/dev/null 2>&1'.format(current_repo_dir)
-        try:
-            subprocess.check_output([git_up_cmd], shell=True)
-            fp.write(str(current_time_since_epoch_milliseconds))
-        except subprocess.CalledProcessError:
-            warnings.warn("WARNING: Failed to update repo.")
-            pass
-        finally:
-            fcntl.flock(fp, fcntl.LOCK_UN)
-            fp.close()
-
-
-"""
-if 'DISABLE_REPO_AUTO_UPDATE' in os.environ and os.environ['DISABLE_REPO_AUTO_UPDATE'] == '1':
-    warnings.warn(
-        "WARNING: Self update disabled using environment variable DISABLE_REPO_AUTO_UPDATE")
-else:
-    __self_update()
-
-modules = glob.glob(os.path.dirname(__file__) + "/*.py")
-__all__ = [os.path.basename(f)[:-3] for f in modules if os.path.isfile(f) and not f.startswith('__')]
-"""
+    except Exception as e:
+        print(f"Error: {e}")

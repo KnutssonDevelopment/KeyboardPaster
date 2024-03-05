@@ -12,6 +12,7 @@ from kivy.clock import Clock
 from kivy.core.window import Window
 
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
+from keyboardpaster.modules.autoupdate import autoupdate
 
 # Fix Focus Behaviour
 import os
@@ -192,6 +193,7 @@ class KeyboardPasterApp(MDApp):
 
 
 def main():
+    autoupdate()
     KeyboardPasterApp().run()
 
 
