@@ -64,11 +64,11 @@ def type_string(text: str, delay: float = 0.1, mod_delay: float = 0.1, layout: s
     :param end_line: Should end the paste with a ENTER press.
     """
 
-    print(f"{layout=}")
+    # print(f"{layout=}")
     special_chars_shift = SPECIAL_CHARS_SHIFT.get(layout, SPECIAL_CHARS_SHIFT[layout])
     special_chars_alt_gr = SPECIAL_CHARS_ALT_GR.get(layout, SPECIAL_CHARS_ALT_GR[layout])
 
-    print(f"{special_chars_alt_gr}")
+    # print(f"{special_chars_alt_gr}")
 
     for char in text:
         if char in special_chars_shift:
@@ -77,7 +77,7 @@ def type_string(text: str, delay: float = 0.1, mod_delay: float = 0.1, layout: s
                 keyboard.press(special_chars_shift[char])
                 keyboard.release(special_chars_shift[char])
         elif char in special_chars_alt_gr:
-            print("Using ALT_GR")
+            # print("Using ALT_GR")
             with keyboard.pressed(Key.alt_gr):
                 time.sleep(mod_delay)
                 keyboard.press(special_chars_alt_gr[char])
@@ -107,7 +107,7 @@ def type_string_with_delay(text: str, start_delay: float = 3.0, mod_delay: float
     :param layout: The keyboard layout to use. Default is 'EN_US'.
     :param end_line: Should end the paste with a ENTER press.
     """
-    print(f"Starting to type in {start_delay} seconds...")
+    # print(f"Starting to type in {start_delay} seconds...")
 
     def type_with_delay_callback(dt):
         # print(f"Typing: {text}")
@@ -163,7 +163,7 @@ class KeyboardPasterApp(MDApp):
 
     def paste_text(self, input_text, _checkbox):
         if not input_text:
-            print("No text found")
+            # print("No text found")
             return
 
         if _checkbox.state == "down":

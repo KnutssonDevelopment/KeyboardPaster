@@ -8,6 +8,8 @@ A Python package to type text using the keyboard module. This is useful in situa
 
 ## Future features
 - Paste images as base64 code
+- Enter would activate the Paste operation
+- Shift+Enter would move all inputs downwards and put the cursor into the next, now empty, field
 
 ## Changes
 ### v0.1.10
