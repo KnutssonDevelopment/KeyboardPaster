@@ -13,6 +13,7 @@ from kivy.core.window import Window
 
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 from keyboardpaster.modules.autoupdate import autoupdate
+from keyboardpaster.shared_resources import app_version
 
 # Fix Focus Behaviour
 import os
@@ -129,6 +130,7 @@ class KeyboardPasterApp(MDApp):
 
         self.detect_keyboard_layout()
         Clock.schedule_once(self.load_inputs, 1)
+        self.title = f"Keyboard Paster v{app_version}"
         Window.size = (1000, 700)
 
         kv_file_path = pkg_resources.resource_filename(__name__, "keyboardpaster_app.kv")

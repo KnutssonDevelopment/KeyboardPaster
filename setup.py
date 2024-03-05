@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
+from keyboardpaster.shared_resources import app_version
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
     name="KeyboardPaster",
-    version="0.1.11",
+    version=app_version,
     author="Brian Knutsson",
     author_email="development@knutsson.it",
     description="A Python package to type text using the keyboard module",
@@ -31,6 +32,7 @@ setup(
         "pynput",
         "kivy",
         "kivymd",
+        "requests"
     ],
     extras_require={
         "windows": ["pywin32"],

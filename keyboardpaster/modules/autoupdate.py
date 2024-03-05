@@ -1,6 +1,7 @@
 import subprocess
 import requests
 import pkg_resources
+import sys
 
 
 def check_for_update(package_name):
@@ -15,7 +16,7 @@ def check_for_update(package_name):
 
 def update_package(package_name):
     """Update the package using pip."""
-    subprocess.check_call([pkg_resources.python_interpreter, "-m", "pip", "install", "--upgrade", package_name])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", package_name])
 
 
 def autoupdate(package_name='keyboardpaster'):
@@ -35,4 +36,4 @@ def autoupdate(package_name='keyboardpaster'):
             print(f"{package_name} is already up to date.")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Warning: {e}")
