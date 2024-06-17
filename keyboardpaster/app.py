@@ -2,6 +2,7 @@ import time
 import re
 import json
 import pkg_resources
+import subprocess
 from pynput.keyboard import Controller, Key
 
 from kivymd.app import MDApp
@@ -205,7 +206,7 @@ class KeyboardPasterApp(MDApp):
         with open("saved_inputs.json", "w") as file:
             json.dump(input_fields, file)
 
-    def paste_text(self, input_text, _checkbox):
+    def type_text(self, input_text, _checkbox):
         if not input_text:
             # print("No text found")
             return
@@ -218,6 +219,15 @@ class KeyboardPasterApp(MDApp):
         start_delay = float(self.root.ids["start_delay"].value)
         mod_delay = float(self.root.ids["mod_delay"].value)
         type_string_with_delay(input_text, start_delay=start_delay, mod_delay=mod_delay, layout=self.layout, end_line=end_line)
+
+    @staticmethod
+    def copy_text(input_text, _checkbox):
+        if not input_text:
+            # print("No text found")
+            return
+
+        cmd = 'echo ' + input_text.strip() + '|clip'
+        subprocess.check_call(cmd, shell=True)
 
     @staticmethod
     def hide_text(_input_text, _checkbox):

@@ -8,10 +8,15 @@ A Python package to type text using the keyboard module. This is useful in situa
 
 ## Future features
 - Paste images as base64 code
-- Enter would activate the Paste operation
-- Shift+Enter would move all inputs downwards and put the cursor into the next, now empty, field
 
 ## Changes
+### v0.1.17
+- FEATURE: Added a button to put text into clipboard
+- UPDATE: Changed the keyboard paste option into an icon
+
+### v0.1.16
+- FEATURE: Changes the launcher to run as a gui application and not show the command line when executed
+
 ### v0.1.15
 - BUGFIX: Fixed the issue where the app would not start when the saved_inputs could not load
 

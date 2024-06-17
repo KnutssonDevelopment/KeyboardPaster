@@ -40,7 +40,7 @@ setup(
         "macos": ["setuptools"],
     },
     entry_points={
-        "console_scripts": [
+        "gui_scripts": [
             "keyboardpaster=keyboardpaster.app:main",
         ],
     },

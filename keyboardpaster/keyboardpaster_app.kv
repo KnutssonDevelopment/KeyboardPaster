@@ -28,9 +28,13 @@
         text: "Secret"
         size_hint: 0.1, 1
 
-    MDRaisedButton:
-        text: "Paste"
-        on_press: app.paste_text(_text_input.text, _cb_execute)
+    MDIconButton:
+        icon: "keyboard"
+        on_press: app.type_text(_text_input.text, _cb_execute)
+
+    MDIconButton:
+        icon: "content-copy"
+        on_press: app.copy_text(_text_input.text, _cb_execute)
 
 
 MDBoxLayout:
