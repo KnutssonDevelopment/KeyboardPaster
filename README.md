@@ -10,6 +10,9 @@ A Python package to type text using the keyboard module. This is useful in situa
 - Paste images as base64 code
 
 ## Changes
+### v0.1.19
+- BUGFIX: Version Bump
+
 ### v0.1.18
 - FEATURE: Added a possibility to have multiple profiles.
 
