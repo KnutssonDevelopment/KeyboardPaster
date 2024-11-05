@@ -36,18 +36,50 @@
         icon: "content-copy"
         on_press: app.copy_text(_text_input.text, _cb_execute)
 
+<ProfileButton@MDFlatButton>:
+    text: "DEFAULT"
+    size_hint_y: None
+    height: 44
+    on_release:
+        root.select(self.text)
+
+<CustomDropDown@DropDown>:
 
 MDBoxLayout:
     orientation: "vertical"
 
     MDTopAppBar:
-        MDLabel:
-            id: title_bar
-            text: "Keyboard Paster"
-            halign: "center"
-            theme_text_color: "Custom"
-            text_color: 1, 1, 1, 1
-            font_size: '30sp'
+        MDBoxLayout:
+            orientation: "horizontal"
+
+            MDLabel:
+                id: title_bar
+                text: "Keyboard Paster"
+                halign: "center"
+                theme_text_color: "Custom"
+                text_color: 1, 1, 1, 1
+                font_size: '30sp'
+
+            MDBoxLayout:
+                orientation: "horizontal"
+                size_hint_x: .3
+
+                MDLabel:
+                    text: "Profile:"
+                    halign: 'right'
+                    theme_text_color: "Custom"
+                    text_color: 1, 1, 1, 1
+                    font_size: '22sp'
+
+                MDFlatButton:
+                    id: profile_selector
+                    text: "DEFAULT"
+                    pos_hint: {'center_y': 0.5}
+                    theme_text_color: "Custom"
+                    text_color: 1, 1, 1, 1
+                    font_size: '22sp'
+                    on_parent: profile_dropdown.dismiss()
+                    on_release: profile_dropdown.open(self)
 
     MDBoxLayout:
         orientation: "vertical"
@@ -133,8 +165,9 @@ MDBoxLayout:
                 text: str(round(mod_delay.value, 1)) + " seconds"
                 theme_text_color: "Secondary"
 
-
-
             MDRaisedButton:
                 text: "Save Inputs"
                 on_release: app.save_inputs()
+
+    CustomDropDown:
+        id: profile_dropdown

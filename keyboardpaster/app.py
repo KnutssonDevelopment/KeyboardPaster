@@ -3,6 +3,7 @@ import re
 import json
 import pkg_resources
 import subprocess
+
 from pynput.keyboard import Controller, Key
 
 from kivymd.app import MDApp
@@ -12,6 +13,9 @@ from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.core.window import Window
 from kivymd.uix.selectioncontrol.selectioncontrol import MDCheckbox
+from kivymd.uix.button.button import MDRaisedButton
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.textfield import MDTextField
 
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 from keyboardpaster.modules.autoupdate import autoupdate
@@ -125,13 +129,21 @@ class KeyboardPasterApp(MDApp):
     start_delay = ObjectProperty(None)
     layout = 'EN_US'
 
+    def __init__(self):
+        super().__init__()
+        self.config = None
+        self.json_config = 'saved_inputs.json'
+
     def build(self):
         self.theme_cls.primary_palette = "DeepPurple"  # Change to your desired primary color
         self.theme_cls.accent_palette = "Amber"  # Change to your desired accent color
         self.theme_cls.theme_style = "Light"  # Set the theme to either "Light" or "Dark"
 
+        self.read_config()
+
         self.detect_keyboard_layout()
-        Clock.schedule_once(self.load_inputs, 1)
+        #Clock.schedule_once(self.load_inputs, 1)
+        Clock.schedule_once(self.set_profile, 1)
         self.title = f"Keyboard Paster v{app_version}"
         Window.size = (1000, 700)
 
@@ -139,49 +151,182 @@ class KeyboardPasterApp(MDApp):
         return Builder.load_file(kv_file_path)
 
     def on_stop(self):
-        # self.save_inputs()
         pass
 
-    def load_inputs(self, dt):
+    def read_config(self):
         try:
-            with open("saved_inputs.json", "r") as file:
-                saved_inputs = json.load(file)
+            with open(self.json_config, "r", encoding='utf-8') as file:
+                self.config = json.load(file)
+        except FileNotFoundError:
+            pass
+        except AttributeError:
+            pass
+        except json.JSONDecodeError:
+            pass
+        except ValueError:
+            pass
+        except KeyError:
+            pass
 
-            input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
-            input_fields = [x for x in input_field_buttons if isinstance(x, TextInput)]
-            checkboxes = [x for x in input_field_buttons if isinstance(x, MDCheckbox) and getattr(x, 'secret_checkbox', False)]
+        if 'profiles' in self.config:
+            pass
+        elif 'input_text_0' in self.config:
+            values = self.config
+            self.config = dict()
+            self.config['profiles'] = dict()
+            self.config['profiles']['DEFAULT'] = values
+        else:
+            self.config = dict()
+            self.config['profiles'] = dict()
+            self.config['profiles']['DEFAULT'] = dict()
 
-            for name, (text, secret_state) in saved_inputs.items():
+    def write_config(self):
+        with open(self.json_config, "w", encoding='utf-8') as file:
+            json.dump(self.config, file)
+
+    @staticmethod
+    def close_dialog(button_instance):
+        # Navigate up the widget tree until we find an MDDialog instance
+        current_widget = button_instance
+        while current_widget and not isinstance(current_widget, MDDialog):
+            current_widget = current_widget.parent
+
+        # If we found an MDDialog instance, dismiss it
+        if isinstance(current_widget, MDDialog):
+            current_widget.dismiss()
+
+    def add_profile(self, profile_name, button_instance):
+        # Access the text from the input box
+        print(f"New profile name: {profile_name}")
+        self.config['profiles'][profile_name] = dict()
+        self.set_profile(None, profile_name)
+
+        # Close the dialog using the button instance
+        self.close_dialog(button_instance)
+
+    def create_new_profile(self):
+        self.close_dropdown()
+
+        profile_input = MDTextField(
+            hint_text="Enter profile name",
+            size_hint_x=0.8,
+            pos_hint={"center_x": 0.5}
+        )
+
+        dialog = MDDialog(
+            title="New Profile",
+            type="custom",
+            content_cls=profile_input,
+            buttons=[
+                MDRaisedButton(
+                    text="CANCEL",
+                    on_release=self.close_dialog
+                ),
+                MDRaisedButton(
+                    text="OK",
+                    on_release=lambda x: self.add_profile(profile_input.text, x)
+                )
+            ],
+        )
+        dialog.open()
+
+    def close_dropdown(self):
+        profile_dropdown = self.root.ids['profile_dropdown']
+        profile_dropdown.dismiss()
+
+    def handle_dropdown(self, profile):
+        self.set_profile(None, profile)
+        self.close_dropdown()
+
+    def generate_profile_selector(self):
+        profile_dropdown = self.root.ids['profile_dropdown']
+        profile_selector = self.root.ids['profile_selector']
+        try:
+            profiles = list(self.config['profiles'].keys())
+        except KeyError:
+            profiles = ['DEFAULT']
+        max_length = 7
+
+        # Removing existing widgets
+        for child in profile_dropdown.children:
+            for widget in reversed(child.children):
+                child.remove_widget(widget)
+
+        btn = MDRaisedButton()
+        btn.text = '- New -'
+        btn.size_hint_y = None
+        btn.bind(on_release=lambda x: self.create_new_profile())
+        profile_dropdown.add_widget(btn)
+
+        for profile in profiles:
+            if len(profile) > max_length:
+                max_length = len(profile)
+
+            if profile != profile_selector.text.strip():
+                btn = MDRaisedButton()
+                btn.text = profile
+                btn.size_hint_y = None
+                btn.bind(on_release=lambda x, p=profile: self.handle_dropdown(p))
+                profile_dropdown.add_widget(btn)
+
+        number_of_whitespaces = max_length - len(profile_selector.text.strip())
+        profile_selector.text = profile_selector.text + (number_of_whitespaces + 1) * " "
+
+    def set_profile(self, dt=None, profile=None):
+        profile_selector = self.root.ids['profile_selector']
+        profile_name = "DEFAULT"
+        saved_inputs = list()
+
+        if profile is None:
+            profile_name = list(self.config['profiles'].keys())[0]
+        else:
+            profile_name = profile
+
+        profile_selector.text = profile_name
+        self.load_inputs()
+        self.generate_profile_selector()
+
+    def load_inputs(self):
+        profile_selector = self.root.ids['profile_selector']
+        profile_name = profile_selector.text.strip()
+
+        if profile_name in self.config['profiles']:
+            profile_values = self.config['profiles'][profile_name]
+        else:
+            profile_values = dict()
+
+        input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
+        input_fields = [x for x in input_field_buttons if isinstance(x, TextInput)]
+        checkboxes = [x for x in input_field_buttons if isinstance(x, MDCheckbox) and getattr(x, 'secret_checkbox', False)]
+
+        if len(profile_values.items()) > 1:
+            for name, (text, secret_state) in profile_values.items():
                 # Set text for TextInput
                 for input_field in input_fields:
                     if input_field.parent.text_input_id == name:
                         input_field.text = text
                         break  # Found the matching input field, no need to continue the loop
 
-                # Set state for corresponding checkbox and adjust text visibility
-                for checkbox in checkboxes:
-                    if checkbox.parent.text_input_id == name:
-                        checkbox.active = secret_state
-                        # Assuming MDTextField is a sibling or accessible as input_field here
-                        # and setting its "password" property based on checkbox state
-                        if secret_state:
-                            input_field.password = True  # Hide text if checkbox is checked
-                        else:
-                            input_field.password = False  # Show text otherwise
-                        break  # Found the matching checkbox, no need to continue the loop
+                    # Set state for corresponding checkbox and adjust text visibility
+                    for checkbox in checkboxes:
+                        if checkbox.parent.text_input_id == name:
+                            checkbox.active = secret_state
+                            # Assuming MDTextField is a sibling or accessible as input_field here
+                            # and setting its "password" property based on checkbox state
+                            if secret_state:
+                                input_field.password = True  # Hide text if checkbox is checked
+                            else:
+                                input_field.password = False  # Show text otherwise
+                            break  # Found the matching checkbox, no need to continue the loop
+        else:
+            for input_field in input_fields:
+                input_field.text = text = ""
 
-        except FileNotFoundError:
-            pass
-        except AttributeError:
-            pass
-        except json.JSONDecodeError:
-            # Handle cases where the JSON file is empty or corrupted
-            pass
-        except ValueError:
-            # Handle cases where the JSON file is empty or corrupted
-            pass
 
     def save_inputs(self):
+        profile_selector = self.root.ids['profile_selector']
+        profile_name = profile_selector.text.strip()
+
         # Assuming `input_field_buttons` contains all relevant child widgets,
         # including both TextInput and MDCheckbox widgets.
         input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
@@ -202,9 +347,9 @@ class KeyboardPasterApp(MDApp):
                 # Store the tuple of text and secret_state in the dictionary.
                 input_fields[child.parent.text_input_id] = (child.text, secret_state)
 
-        # Save the dictionary to a JSON file.
-        with open("saved_inputs.json", "w") as file:
-            json.dump(input_fields, file)
+
+        self.config['profiles'][profile_name] = input_fields
+        self.write_config()
 
     def type_text(self, input_text, _checkbox):
         if not input_text:
