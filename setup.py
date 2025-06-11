@@ -26,8 +26,9 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.12",
     ],
-    python_requires=">=3.10",
+    python_requires="<=3.12",
     install_requires=[
         "pynput",
         "kivy",
