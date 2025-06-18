@@ -290,37 +290,37 @@ class KeyboardPasterApp(MDApp):
         profile_selector = self.root.ids['profile_selector']
         profile_name = profile_selector.text.strip()
 
-        if profile_name in self.config['profiles']:
-            profile_values = self.config['profiles'][profile_name]
-        else:
-            profile_values = dict()
-
         input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
         input_fields = [x for x in input_field_buttons if isinstance(x, TextInput)]
         checkboxes = [x for x in input_field_buttons if isinstance(x, MDCheckbox) and getattr(x, 'secret_checkbox', False)]
 
-        if len(profile_values.items()) > 1:
-            for name, (text, secret_state) in profile_values.items():
-                # Set text for TextInput
+        profile_values = dict()
+
+        for input_field in input_fields:
+            input_field.text = ""
+
+        for checkbox in checkboxes:
+            checkbox.active = False
+
+        if profile_name in self.config['profiles']:
+            profile_values = self.config['profiles'][profile_name]
+
+            if len(profile_values.items()) > 1:
                 for input_field in input_fields:
-                    if input_field.parent.text_input_id == name:
-                        input_field.text = text
-                        break  # Found the matching input field, no need to continue the loop
+                    for name, (text, secret_state) in profile_values.items():
+                        # Set text for TextInput
+                        if input_field.parent.text_input_id == name:
+                            input_field.text = text
+                            break  # Found the matching input field, no need to continue the loop
 
                     # Set state for corresponding checkbox and adjust text visibility
                     for checkbox in checkboxes:
                         if checkbox.parent.text_input_id == name:
                             checkbox.active = secret_state
-                            # Assuming MDTextField is a sibling or accessible as input_field here
-                            # and setting its "password" property based on checkbox state
-                            if secret_state:
-                                input_field.password = True  # Hide text if checkbox is checked
-                            else:
-                                input_field.password = False  # Show text otherwise
-                            break  # Found the matching checkbox, no need to continue the loop
-        else:
-            for input_field in input_fields:
-                input_field.text = text = ""
+                            for input_field in input_fields:
+                                if input_field.parent.text_input_id == name:
+                                    input_field.password = secret_state  # Hide text if checkbox is checked
+                                    break  # Found the matching checkbox, no need to continue the loop
 
 
     def save_inputs(self):
