@@ -1,8 +1,9 @@
 import time
 import re
 import json
-import pkg_resources
 import subprocess
+import importlib.resources
+import keyboardpaster
 
 from pynput.keyboard import Controller, Key
 
@@ -147,8 +148,8 @@ class KeyboardPasterApp(MDApp):
         self.title = f"Keyboard Paster v{app_version}"
         Window.size = (1000, 700)
 
-        kv_file_path = pkg_resources.resource_filename(__name__, "keyboardpaster_app.kv")
-        return Builder.load_file(kv_file_path)
+        with importlib.resources.path(keyboardpaster, "keyboardpaster_app.kv") as kv_file_path:
+            return Builder.load_file(str(kv_file_path))
 
     def on_stop(self):
         pass

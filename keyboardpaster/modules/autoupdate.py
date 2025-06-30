@@ -1,7 +1,7 @@
 import subprocess
 import requests
-import pkg_resources
 import sys
+from importlib.metadata import version, PackageNotFoundError
 
 
 def check_for_update(package_name):
@@ -22,7 +22,12 @@ def update_package(package_name):
 def autoupdate(package_name='keyboardpaster'):
     """Main function to check and update package."""
     try:
-        installed_version = pkg_resources.get_distribution(package_name).version
+        try:
+            installed_version = version(package_name)
+        except PackageNotFoundError:
+            print(f"{package_name} is not installed.")
+            return
+
         latest_version = check_for_update(package_name)
 
         print(f"Installed version: {installed_version}")
