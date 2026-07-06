@@ -1,7 +1,9 @@
 import os
 import shutil
+import socket
 import subprocess
 import time
+from contextlib import contextmanager
 
 from pynput.keyboard import Controller, Key
 
@@ -53,13 +55,6 @@ def _ydotool_socket_candidates() -> list[str]:
     return candidates
 
 
-def _find_ydotool_socket() -> str | None:
-    for path in _ydotool_socket_candidates():
-        if os.path.exists(path):
-            return path
-    return None
-
-
 def _default_ydotool_socket() -> str:
     runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
     if runtime_dir:
@@ -83,15 +78,42 @@ def _run_command(args: list[str], env: dict[str, str] | None = None) -> None:
         raise RuntimeError(message)
 
 
-def ensure_ydotoold() -> str:
-    socket_path = _find_ydotool_socket()
-    if socket_path:
-        return socket_path
+def _socket_owned_by_us(path: str) -> bool:
+    try:
+        return os.stat(path).st_uid == os.geteuid()
+    except OSError:
+        return False
 
-    socket_path = _default_ydotool_socket()
-    if not is_ydotoold_installed():
-        return socket_path
 
+def _ydotoold_backend_available(socket_path: str) -> bool:
+    if not os.path.exists(socket_path) or not _socket_owned_by_us(socket_path):
+        return False
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(1)
+            sock.connect(socket_path)
+        return True
+    except OSError:
+        return False
+
+
+def _ydotoold_error_message(socket_path: str) -> str:
+    tmp_socket = "/tmp/.ydotool_socket"
+    if os.path.exists(tmp_socket) and not _socket_owned_by_us(tmp_socket):
+        return (
+            "ydotoold kører ikke. En gammel root-socket blokerer opstart:\n\n"
+            "sudo rm /tmp/.ydotool_socket\n"
+            f'ydotoold --socket-path="{socket_path}" '
+            f'--socket-own="{os.getuid()}:{os.getgid()}" &\n\n'
+            f'export YDOTOOL_SOCKET="{socket_path}"'
+        )
+    return GNOME_YDOTOOL_HELP
+
+
+def _start_ydotoold(socket_path: str) -> None:
+    socket_dir = os.path.dirname(socket_path)
+    if socket_dir:
+        os.makedirs(socket_dir, exist_ok=True)
     subprocess.Popen(
         [
             "ydotoold",
@@ -103,12 +125,21 @@ def ensure_ydotoold() -> str:
         start_new_session=True,
     )
 
-    for _ in range(20):
-        time.sleep(0.1)
-        if os.path.exists(socket_path):
-            return socket_path
 
-    return socket_path
+def ensure_ydotoold() -> str:
+    for path in _ydotool_socket_candidates():
+        if _ydotoold_backend_available(path):
+            return path
+
+    socket_path = _default_ydotool_socket()
+    if is_ydotoold_installed():
+        _start_ydotoold(socket_path)
+        for _ in range(30):
+            time.sleep(0.1)
+            if _ydotoold_backend_available(socket_path):
+                return socket_path
+
+    raise RuntimeError(_ydotoold_error_message(socket_path))
 
 
 def _type_char_pynput(
@@ -219,8 +250,17 @@ EN_US_BASE_KEYCODE = {
 }
 
 DA_DK_YDOTOOL_COMBO = {
-    # ydotool 0.1.x: shift+dot/period parses wrong; shift+. works on DA_DK
+    # ydotool 0.1.x: use literal key chars, not key names (dot/comma/period)
     ":": "shift+.",
+    ";": "shift+,",
+    # Danish * is shift on the physical backslash key; use literal \ not "backslash"
+    "*": "shift+\\",
+    # Danish + key must be passed literally (ydotool key -- -)
+    "+": "-",
+    # Danish ? is shift on the same key as +
+    "?": "shift+-",
+    # Danish | is AltGr on the key next to + (ydotool exposes it as '=')
+    "|": "alt_r+=",
 }
 
 
@@ -250,7 +290,7 @@ def _char_keycode_sequence(
 
     if special_chars_shift and char in special_chars_shift:
         base = special_chars_shift[char]
-        if len(base) == 1 and base.isalnum():
+        if len(base) == 1:
             return None
         keycode = base_map.get(base)
         if keycode is None:
@@ -259,7 +299,7 @@ def _char_keycode_sequence(
 
     if special_chars_alt_gr and char in special_chars_alt_gr:
         base = special_chars_alt_gr[char]
-        if _altgr_to_ydotool_combo(base):
+        if len(base) == 1:
             return None
         keycode = base_map.get(base)
         if keycode is None:
@@ -307,10 +347,13 @@ def _char_to_ydotool_combo(
         return _altgr_to_ydotool_combo(special_chars_alt_gr[char])
 
     if special_chars_shift and char in special_chars_shift:
-        key = _base_to_ydotool_key(special_chars_shift[char], layout)
-        if not _is_safe_ydotool_key(key):
-            return None
-        return f"shift+{key}"
+        base = special_chars_shift[char]
+        if len(base) == 1:
+            if base.isascii() and base.isalnum():
+                return f"shift+{base.lower()}"
+            # literal key char: shift+, shift+., shift+´, etc.
+            return f"shift+{base}"
+        return None
 
     if len(char) == 1 and char.isascii() and char.isupper():
         return f"shift+{char.lower()}"
@@ -354,6 +397,8 @@ def _ydotool_press_combos(
         args.extend(["--delay", str(mod_delay_ms)])
     if key_delay_ms:
         args.extend(["--key-delay", str(key_delay_ms)])
+    # Needed for literal keys that look like options (e.g. "-").
+    args.append("--")
     args.extend(combos)
     _run_command(args, env=env)
 
@@ -380,6 +425,76 @@ def _ydotool_type_plain(text: str, env: dict[str, str], key_delay_ms: int) -> No
         raise RuntimeError(message)
 
 
+@contextmanager
+def _temporary_gnome_us_keyboard():
+    saved_sources = subprocess.check_output(
+        ["gsettings", "get", "org.gnome.desktop.input-sources", "sources"],
+        text=True,
+    ).strip()
+    saved_current = subprocess.check_output(
+        ["gsettings", "get", "org.gnome.desktop.input-sources", "current"],
+        text=True,
+    ).strip()
+    try:
+        subprocess.run(
+            [
+                "gsettings", "set",
+                "org.gnome.desktop.input-sources", "sources",
+                "[('xkb', 'us')]",
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "gsettings", "set",
+                "org.gnome.desktop.input-sources", "current",
+                "0",
+            ],
+            check=True,
+        )
+        # GNOME needs a moment to apply the layout before ydotool sends keys.
+        time.sleep(0.25)
+        yield
+        time.sleep(0.05)
+    finally:
+        subprocess.run(
+            [
+                "gsettings", "set",
+                "org.gnome.desktop.input-sources", "sources",
+                saved_sources,
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "gsettings", "set",
+                "org.gnome.desktop.input-sources", "current",
+                saved_current,
+            ],
+            check=True,
+        )
+
+
+def _ydotool_type_gnome_backslash(env: dict[str, str], key_delay_ms: int) -> None:
+    # ydotool 0.1.x cannot hit Danish backslash; briefly switch to US layout.
+    with _temporary_gnome_us_keyboard():
+        _ydotool_type_plain("\\", env, key_delay_ms)
+
+
+def _ydotool_send_backslash(
+    env: dict[str, str],
+    key_delay_ms: int,
+    mod_delay_ms: int,
+) -> None:
+    if is_gnome():
+        # Physical keyboard is Danish; layout spinner may still say EN_US.
+        time.sleep(0.1)
+        _ydotool_type_gnome_backslash(env, key_delay_ms)
+        time.sleep(0.1)
+        return
+    _ydotool_press_combos(["\\"], env, key_delay_ms, mod_delay_ms)
+
+
 def type_string_ydotool(
     text: str,
     delay: float = 0.1,
@@ -401,6 +516,11 @@ def type_string_ydotool(
             pending.clear()
 
     for char in text:
+        if char == "\\":
+            flush_pending()
+            _ydotool_send_backslash(env, key_delay_ms, mod_delay_ms)
+            continue
+
         keycodes = _char_keycode_sequence(char, layout, special_chars_shift, special_chars_alt_gr)
         if keycodes:
             flush_pending()
