@@ -1,0 +1,477 @@
+import os
+import shutil
+import subprocess
+import time
+
+from pynput.keyboard import Controller, Key
+
+keyboard = Controller()
+
+GNOME_YDOTOOL_HELP = (
+    "GNOME på Wayland kræver ydotool med en kørende daemon:\n\n"
+    "sudo apt install ydotool ydotoold\n"
+    "sudo usermod -aG input $USER\n"
+    "(log ud og ind igen)\n\n"
+    "Start daemonen:\n"
+    'ydotoold --socket-path="$XDG_RUNTIME_DIR/.ydotool_socket" '
+    '--socket-own="$(id -u):$(id -g)" &\n\n'
+    'export YDOTOOL_SOCKET="$XDG_RUNTIME_DIR/.ydotool_socket"'
+)
+
+
+def is_wayland() -> bool:
+    return os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
+
+
+def is_gnome() -> bool:
+    return "gnome" in os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+
+
+def is_wtype_available() -> bool:
+    return shutil.which("wtype") is not None
+
+
+def is_ydotool_available() -> bool:
+    return shutil.which("ydotool") is not None
+
+
+def is_ydotoold_installed() -> bool:
+    return shutil.which("ydotoold") is not None
+
+
+def _ydotool_socket_candidates() -> list[str]:
+    candidates = []
+    if os.environ.get("YDOTOOL_SOCKET"):
+        candidates.append(os.environ["YDOTOOL_SOCKET"])
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime_dir:
+        candidates.append(os.path.join(runtime_dir, ".ydotool_socket"))
+    candidates.extend([
+        os.path.join(os.path.expanduser("~"), ".ydotool_socket"),
+        "/tmp/.ydotool_socket",
+    ])
+    return candidates
+
+
+def _find_ydotool_socket() -> str | None:
+    for path in _ydotool_socket_candidates():
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def _default_ydotool_socket() -> str:
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime_dir:
+        return os.path.join(runtime_dir, ".ydotool_socket")
+    return os.path.join(os.path.expanduser("~"), ".ydotool_socket")
+
+
+def _ydotool_env(socket_path: str) -> dict[str, str]:
+    env = os.environ.copy()
+    env["YDOTOOL_SOCKET"] = socket_path
+    return env
+
+
+def _run_command(args: list[str], env: dict[str, str] | None = None) -> None:
+    result = subprocess.run(args, capture_output=True, text=True, env=env)
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        message = stderr or (result.stdout or "").strip()
+        if not message:
+            message = f"Kommandoen fejlede: {' '.join(args)}"
+        raise RuntimeError(message)
+
+
+def ensure_ydotoold() -> str:
+    socket_path = _find_ydotool_socket()
+    if socket_path:
+        return socket_path
+
+    socket_path = _default_ydotool_socket()
+    if not is_ydotoold_installed():
+        return socket_path
+
+    subprocess.Popen(
+        [
+            "ydotoold",
+            f"--socket-path={socket_path}",
+            f"--socket-own={os.getuid()}:{os.getgid()}",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+    for _ in range(20):
+        time.sleep(0.1)
+        if os.path.exists(socket_path):
+            return socket_path
+
+    return socket_path
+
+
+def _type_char_pynput(
+    char: str,
+    delay: float,
+    mod_delay: float,
+    special_chars_shift: dict | None,
+    special_chars_alt_gr: dict | None,
+) -> None:
+    if special_chars_shift and char in special_chars_shift:
+        with keyboard.pressed(Key.shift):
+            time.sleep(mod_delay)
+            keyboard.press(special_chars_shift[char])
+            keyboard.release(special_chars_shift[char])
+    elif special_chars_alt_gr and char in special_chars_alt_gr:
+        with keyboard.pressed(Key.alt_gr):
+            time.sleep(mod_delay)
+            keyboard.press(special_chars_alt_gr[char])
+            keyboard.release(special_chars_alt_gr[char])
+    elif len(char) == 1 and char.isascii() and char.isupper():
+        with keyboard.pressed(Key.shift):
+            time.sleep(mod_delay)
+            keyboard.press(char.lower())
+            keyboard.release(char.lower())
+    else:
+        keyboard.press(char)
+        keyboard.release(char)
+    time.sleep(delay)
+
+
+def type_string_pynput(
+    text: str,
+    delay: float = 0.1,
+    mod_delay: float = 0.1,
+    layout: str = "EN_US",
+    end_line: bool = False,
+    special_chars_shift: dict | None = None,
+    special_chars_alt_gr: dict | None = None,
+) -> None:
+    for char in text:
+        _type_char_pynput(char, delay, mod_delay, special_chars_shift, special_chars_alt_gr)
+
+    if end_line:
+        keyboard.press(Key.enter)
+        keyboard.release(Key.enter)
+
+
+def type_string_wtype(text: str, delay: float = 0.1, end_line: bool = False) -> None:
+    delay_ms = max(0, int(delay * 1000))
+    args = ["wtype"]
+    if delay_ms:
+        args.extend(["-d", str(delay_ms)])
+    args.append(text)
+
+    _run_command(args)
+
+    if end_line:
+        _run_command(["wtype", "-k", "Return"])
+
+
+SHIFT_KEYCODE = 42
+ALTGR_KEYCODE = 100
+ENTER_KEYCODE = 28
+
+DA_DK_BASE_KEYCODE = {
+    "§": 41,
+    "1": 2,
+    "2": 3,
+    "3": 4,
+    "4": 5,
+    "5": 6,
+    "6": 7,
+    "7": 8,
+    "8": 9,
+    "9": 10,
+    "0": 11,
+    "´": 40,
+    ";": 51,
+    ",": 51,
+    "<": 86,
+    "-": 12,
+    "'": 40,
+    ".": 52,
+}
+
+EN_US_BASE_KEYCODE = {
+    "`": 41,
+    "1": 2,
+    "2": 3,
+    "3": 4,
+    "4": 5,
+    "5": 6,
+    "6": 7,
+    "7": 8,
+    "8": 9,
+    "9": 10,
+    "0": 11,
+    "-": 12,
+    "=": 13,
+    "[": 26,
+    "]": 27,
+    "\\": 43,
+    ";": 39,
+    "'": 40,
+    ",": 51,
+    ".": 52,
+    "/": 53,
+}
+
+DA_DK_YDOTOOL_COMBO = {
+    # ydotool 0.1.x: shift+dot/period parses wrong; shift+. works on DA_DK
+    ":": "shift+.",
+}
+
+
+def _altgr_to_ydotool_combo(base: str) -> str | None:
+    # ydotool 0.1.x: use ALT_R, not altgr/rightalt (verified for $ = alt_r+4)
+    if len(base) == 1 and base.isascii() and base.isalnum():
+        return f"alt_r+{base.lower()}"
+    return None
+
+
+def _keycode_press(modifier: int | None, keycode: int) -> list[str]:
+    if modifier is None:
+        return [f"{keycode}:1", f"{keycode}:0"]
+    return [f"{modifier}:1", f"{keycode}:1", f"{keycode}:0", f"{modifier}:0"]
+
+
+def _char_keycode_sequence(
+    char: str,
+    layout: str,
+    special_chars_shift: dict | None,
+    special_chars_alt_gr: dict | None,
+) -> list[str] | None:
+    if layout == "DA_DK" and char in DA_DK_YDOTOOL_COMBO:
+        return None
+
+    base_map = DA_DK_BASE_KEYCODE if layout == "DA_DK" else EN_US_BASE_KEYCODE
+
+    if special_chars_shift and char in special_chars_shift:
+        base = special_chars_shift[char]
+        if len(base) == 1 and base.isalnum():
+            return None
+        keycode = base_map.get(base)
+        if keycode is None:
+            return None
+        return _keycode_press(SHIFT_KEYCODE, keycode)
+
+    if special_chars_alt_gr and char in special_chars_alt_gr:
+        base = special_chars_alt_gr[char]
+        if _altgr_to_ydotool_combo(base):
+            return None
+        keycode = base_map.get(base)
+        if keycode is None:
+            return None
+        return _keycode_press(ALTGR_KEYCODE, keycode)
+
+    return None
+
+
+YDOTOOL_KEY_NAME = {
+    **{letter: letter for letter in "abcdefghijklmnopqrstuvwxyz"},
+    **{str(digit): str(digit) for digit in range(10)},
+}
+
+DA_DK_YDOTOOL_BASE = dict(YDOTOOL_KEY_NAME)
+EN_US_YDOTOOL_BASE = dict(YDOTOOL_KEY_NAME)
+
+
+def _is_safe_ydotool_key(key: str) -> bool:
+    return len(key) == 1 and key.isalnum()
+
+
+def _layout_base_map(layout: str) -> dict[str, str]:
+    if layout == "DA_DK":
+        return DA_DK_YDOTOOL_BASE
+    return EN_US_YDOTOOL_BASE
+
+
+def _base_to_ydotool_key(base: str, layout: str) -> str:
+    if len(base) == 1 and base.isascii() and base.isalnum():
+        return base.lower()
+    return _layout_base_map(layout).get(base, base)
+
+
+def _char_to_ydotool_combo(
+    char: str,
+    layout: str,
+    special_chars_shift: dict | None,
+    special_chars_alt_gr: dict | None,
+) -> str | None:
+    if layout == "DA_DK" and char in DA_DK_YDOTOOL_COMBO:
+        return DA_DK_YDOTOOL_COMBO[char]
+
+    if special_chars_alt_gr and char in special_chars_alt_gr:
+        return _altgr_to_ydotool_combo(special_chars_alt_gr[char])
+
+    if special_chars_shift and char in special_chars_shift:
+        key = _base_to_ydotool_key(special_chars_shift[char], layout)
+        if not _is_safe_ydotool_key(key):
+            return None
+        return f"shift+{key}"
+
+    if len(char) == 1 and char.isascii() and char.isupper():
+        return f"shift+{char.lower()}"
+
+    if len(char) == 1 and char.isascii() and char.islower():
+        return char
+
+    if len(char) == 1 and char.isascii() and char.isdigit():
+        return char
+
+    return None
+
+
+def _ydotool_press_keycodes(
+    keycodes: list[str],
+    env: dict[str, str],
+    key_delay_ms: int,
+    mod_delay_ms: int = 0,
+) -> None:
+    if not keycodes:
+        return
+    args = ["ydotool", "key"]
+    if mod_delay_ms:
+        args.extend(["--delay", str(mod_delay_ms)])
+    if key_delay_ms:
+        args.extend(["--key-delay", str(key_delay_ms)])
+    args.extend(keycodes)
+    _run_command(args, env=env)
+
+
+def _ydotool_press_combos(
+    combos: list[str],
+    env: dict[str, str],
+    key_delay_ms: int,
+    mod_delay_ms: int = 0,
+) -> None:
+    if not combos:
+        return
+    args = ["ydotool", "key"]
+    if mod_delay_ms:
+        args.extend(["--delay", str(mod_delay_ms)])
+    if key_delay_ms:
+        args.extend(["--key-delay", str(key_delay_ms)])
+    args.extend(combos)
+    _run_command(args, env=env)
+
+
+def _ydotool_type_plain(text: str, env: dict[str, str], key_delay_ms: int) -> None:
+    if not text:
+        return
+    args = ["ydotool", "type"]
+    if key_delay_ms:
+        args.extend(["--key-delay", str(key_delay_ms)])
+    args.extend(["--file", "-"])
+    result = subprocess.run(
+        args,
+        input=text,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        message = stderr or (result.stdout or "").strip()
+        if not message:
+            message = f"Kommandoen fejlede: {' '.join(args)}"
+        raise RuntimeError(message)
+
+
+def type_string_ydotool(
+    text: str,
+    delay: float = 0.1,
+    mod_delay: float = 0.1,
+    end_line: bool = False,
+    special_chars_shift: dict | None = None,
+    special_chars_alt_gr: dict | None = None,
+    layout: str = "EN_US",
+) -> None:
+    socket_path = ensure_ydotoold()
+    env = _ydotool_env(socket_path)
+    key_delay_ms = max(12, int(delay * 1000))
+    mod_delay_ms = max(0, int(mod_delay * 1000))
+    pending: list[str] = []
+
+    def flush_pending() -> None:
+        if pending:
+            _ydotool_press_combos(pending, env, key_delay_ms, mod_delay_ms)
+            pending.clear()
+
+    for char in text:
+        keycodes = _char_keycode_sequence(char, layout, special_chars_shift, special_chars_alt_gr)
+        if keycodes:
+            flush_pending()
+            _ydotool_press_keycodes(keycodes, env, key_delay_ms, mod_delay_ms)
+            continue
+
+        combo = _char_to_ydotool_combo(char, layout, special_chars_shift, special_chars_alt_gr)
+        if combo is None:
+            flush_pending()
+            _type_char_pynput(char, delay, mod_delay, special_chars_shift, special_chars_alt_gr)
+            continue
+
+        pending.append(combo)
+
+    flush_pending()
+
+    if end_line:
+        _run_command(
+            ["ydotool", "key", f"{ENTER_KEYCODE}:1", f"{ENTER_KEYCODE}:0"],
+            env=env,
+        )
+
+
+def _wayland_backend() -> str:
+    if is_gnome():
+        if is_ydotool_available():
+            return "ydotool"
+        raise RuntimeError(GNOME_YDOTOOL_HELP)
+
+    if is_wtype_available():
+        return "wtype"
+    if is_ydotool_available():
+        return "ydotool"
+
+    raise RuntimeError(
+        "Wayland kræver 'wtype' eller 'ydotool' for at sende tastaturinput. "
+        "Installér med: sudo apt install ydotool ydotoold"
+    )
+
+
+def type_string(
+    text: str,
+    delay: float = 0.1,
+    mod_delay: float = 0.1,
+    layout: str = "EN_US",
+    end_line: bool = False,
+    special_chars_shift: dict | None = None,
+    special_chars_alt_gr: dict | None = None,
+) -> None:
+    if is_wayland():
+        backend = _wayland_backend()
+        if backend == "wtype":
+            type_string_wtype(text, delay=delay, end_line=end_line)
+        else:
+            type_string_ydotool(
+                text,
+                delay=delay,
+                mod_delay=mod_delay,
+                end_line=end_line,
+                special_chars_shift=special_chars_shift,
+                special_chars_alt_gr=special_chars_alt_gr,
+                layout=layout,
+            )
+        return
+
+    type_string_pynput(
+        text,
+        delay=delay,
+        mod_delay=mod_delay,
+        layout=layout,
+        end_line=end_line,
+        special_chars_shift=special_chars_shift,
+        special_chars_alt_gr=special_chars_alt_gr,
+    )

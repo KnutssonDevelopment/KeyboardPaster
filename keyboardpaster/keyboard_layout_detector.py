@@ -1,6 +1,8 @@
 import platform
 import subprocess
 import ctypes
+import ast
+import os
 from ctypes import wintypes
 from kivy.logger import Logger
 
@@ -92,7 +94,27 @@ def get_keyboard_layout_windows():
         return str(language_id_hex)
 
 
+def get_keyboard_layout_linux_gnome():
+    try:
+        output = subprocess.check_output(
+            ["gsettings", "get", "org.gnome.desktop.input-sources", "sources"],
+            text=True,
+        ).strip()
+        sources = ast.literal_eval(output)
+        for source in reversed(sources):
+            if source[0] == "xkb":
+                return source[1]
+    except Exception as e:
+        Logger.error(f"Error detecting GNOME keyboard layout: {e}")
+    return None
+
+
 def get_keyboard_layout_linux():
+    if os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland":
+        gnome_layout = get_keyboard_layout_linux_gnome()
+        if gnome_layout:
+            return gnome_layout
+
     try:
         output = subprocess.check_output(["setxkbmap", "-query"]).decode("utf-8")
         for line in output.splitlines():

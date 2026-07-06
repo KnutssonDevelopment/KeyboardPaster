@@ -5,3 +5,4 @@ dist
 *.json
 *.ps1
 /.pypirc
+__pycache__/
