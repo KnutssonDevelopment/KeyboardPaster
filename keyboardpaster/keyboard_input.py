@@ -5,6 +5,27 @@ import subprocess
 import time
 from contextlib import contextmanager
 
+
+def _patch_python_xlib_randr_errors() -> None:
+    """Work around pip python-xlib 0.33 RandR errors missing XError base.
+
+    Without this, pynput can raise AttributeError when using AltGr (e.g. '{' on DA_DK).
+    """
+    try:
+        from Xlib.error import XError
+        from Xlib.ext import randr
+    except ImportError:
+        return
+
+    for name in ("BadRROutputError", "BadRRCrtcError", "BadRRModeError"):
+        cls = getattr(randr, name, None)
+        if cls is None or issubclass(cls, XError):
+            continue
+        setattr(randr, name, type(name, (XError,), {}))
+
+
+_patch_python_xlib_randr_errors()
+
 from pynput.keyboard import Controller, Key
 
 keyboard = Controller()
@@ -142,6 +163,13 @@ def ensure_ydotoold() -> str:
     raise RuntimeError(_ydotoold_error_message(socket_path))
 
 
+def _pynput_alt_gr_keys() -> tuple:
+    # On Linux/X11, AltGr is Ctrl+Alt; Key.alt_gr triggers X11 RandR errors in pynput.
+    if os.name == "nt":
+        return (Key.alt_gr,)
+    return (Key.ctrl, Key.alt)
+
+
 def _type_char_pynput(
     char: str,
     delay: float,
@@ -155,7 +183,7 @@ def _type_char_pynput(
             keyboard.press(special_chars_shift[char])
             keyboard.release(special_chars_shift[char])
     elif special_chars_alt_gr and char in special_chars_alt_gr:
-        with keyboard.pressed(Key.alt_gr):
+        with keyboard.pressed(*_pynput_alt_gr_keys()):
             time.sleep(mod_delay)
             keyboard.press(special_chars_alt_gr[char])
             keyboard.release(special_chars_alt_gr[char])
@@ -259,6 +287,12 @@ DA_DK_YDOTOOL_COMBO = {
     "+": "-",
     # Danish ? is shift on the same key as +
     "?": "shift+-",
+    "=": "shift+0",
+    # AltGr bracket/digit keys (verified: alt_r+4 works for $)
+    "{": "alt_r+7",
+    "}": "alt_r+0",
+    "[": "alt_r+8",
+    "]": "alt_r+9",
     # Danish | is AltGr on the key next to + (ydotool exposes it as '=')
     "|": "alt_r+=",
 }
@@ -277,6 +311,11 @@ def _keycode_press(modifier: int | None, keycode: int) -> list[str]:
     return [f"{modifier}:1", f"{keycode}:1", f"{keycode}:0", f"{modifier}:0"]
 
 
+def _use_keycodes_for_modifier_base(base: str) -> bool:
+    # ydotool combos (alt_r+7, shift+0) work for alnum keys; raw keycodes only for punctuation.
+    return len(base) == 1 and not (base.isascii() and base.isalnum())
+
+
 def _char_keycode_sequence(
     char: str,
     layout: str,
@@ -290,21 +329,19 @@ def _char_keycode_sequence(
 
     if special_chars_shift and char in special_chars_shift:
         base = special_chars_shift[char]
-        if len(base) == 1:
-            return None
-        keycode = base_map.get(base)
-        if keycode is None:
-            return None
-        return _keycode_press(SHIFT_KEYCODE, keycode)
+        if _use_keycodes_for_modifier_base(base):
+            keycode = base_map.get(base)
+            if keycode is not None:
+                return _keycode_press(SHIFT_KEYCODE, keycode)
+        return None
 
     if special_chars_alt_gr and char in special_chars_alt_gr:
         base = special_chars_alt_gr[char]
-        if len(base) == 1:
-            return None
-        keycode = base_map.get(base)
-        if keycode is None:
-            return None
-        return _keycode_press(ALTGR_KEYCODE, keycode)
+        if _use_keycodes_for_modifier_base(base):
+            keycode = base_map.get(base)
+            if keycode is not None:
+                return _keycode_press(ALTGR_KEYCODE, keycode)
+        return None
 
     return None
 
@@ -530,7 +567,7 @@ def type_string_ydotool(
         combo = _char_to_ydotool_combo(char, layout, special_chars_shift, special_chars_alt_gr)
         if combo is None:
             flush_pending()
-            _type_char_pynput(char, delay, mod_delay, special_chars_shift, special_chars_alt_gr)
+            _ydotool_type_plain(char, env, key_delay_ms)
             continue
 
         pending.append(combo)
@@ -561,6 +598,14 @@ def _wayland_backend() -> str:
     )
 
 
+def _input_backend() -> str:
+    if is_wayland():
+        return _wayland_backend()
+    if is_ydotool_available():
+        return "ydotool"
+    return "pynput"
+
+
 def type_string(
     text: str,
     delay: float = 0.1,
@@ -570,28 +615,26 @@ def type_string(
     special_chars_shift: dict | None = None,
     special_chars_alt_gr: dict | None = None,
 ) -> None:
-    if is_wayland():
-        backend = _wayland_backend()
-        if backend == "wtype":
-            type_string_wtype(text, delay=delay, end_line=end_line)
-        else:
-            type_string_ydotool(
-                text,
-                delay=delay,
-                mod_delay=mod_delay,
-                end_line=end_line,
-                special_chars_shift=special_chars_shift,
-                special_chars_alt_gr=special_chars_alt_gr,
-                layout=layout,
-            )
-        return
-
-    type_string_pynput(
-        text,
-        delay=delay,
-        mod_delay=mod_delay,
-        layout=layout,
-        end_line=end_line,
-        special_chars_shift=special_chars_shift,
-        special_chars_alt_gr=special_chars_alt_gr,
-    )
+    backend = _input_backend()
+    if backend == "wtype":
+        type_string_wtype(text, delay=delay, end_line=end_line)
+    elif backend == "ydotool":
+        type_string_ydotool(
+            text,
+            delay=delay,
+            mod_delay=mod_delay,
+            end_line=end_line,
+            special_chars_shift=special_chars_shift,
+            special_chars_alt_gr=special_chars_alt_gr,
+            layout=layout,
+        )
+    else:
+        type_string_pynput(
+            text,
+            delay=delay,
+            mod_delay=mod_delay,
+            layout=layout,
+            end_line=end_line,
+            special_chars_shift=special_chars_shift,
+            special_chars_alt_gr=special_chars_alt_gr,
+        )
