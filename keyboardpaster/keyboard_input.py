@@ -176,8 +176,13 @@ def _type_char_pynput(
     mod_delay: float,
     special_chars_shift: dict | None,
     special_chars_alt_gr: dict | None,
+    layout: str = "EN_US",
 ) -> None:
-    if special_chars_shift and char in special_chars_shift:
+    if layout == "DA_DK" and char in DA_DK_PLAIN_CHAR_KEYS:
+        key = DA_DK_PLAIN_CHAR_KEYS[char]
+        keyboard.press(key)
+        keyboard.release(key)
+    elif special_chars_shift and char in special_chars_shift:
         with keyboard.pressed(Key.shift):
             time.sleep(mod_delay)
             keyboard.press(special_chars_shift[char])
@@ -208,7 +213,7 @@ def type_string_pynput(
     special_chars_alt_gr: dict | None = None,
 ) -> None:
     for char in text:
-        _type_char_pynput(char, delay, mod_delay, special_chars_shift, special_chars_alt_gr)
+        _type_char_pynput(char, delay, mod_delay, special_chars_shift, special_chars_alt_gr, layout)
 
     if end_line:
         keyboard.press(Key.enter)
@@ -249,7 +254,6 @@ DA_DK_BASE_KEYCODE = {
     ",": 51,
     "<": 86,
     "-": 12,
-    "'": 40,
     ".": 52,
 }
 
@@ -277,12 +281,19 @@ EN_US_BASE_KEYCODE = {
     "/": 53,
 }
 
+DA_DK_PLAIN_CHAR_KEYS = {
+    # On Danish layout, apostrophe is on the physical backslash key (not the ø key).
+    "'": "\\",
+}
+
 DA_DK_YDOTOOL_COMBO = {
     # ydotool 0.1.x: use literal key chars, not key names (dot/comma/period)
     ":": "shift+.",
     ";": "shift+,",
     # Danish * is shift on the physical backslash key; use literal \ not "backslash"
     "*": "shift+\\",
+    # Danish ' is on the same physical key as * (xkb BKSL)
+    "'": "\\",
     # Danish + key must be passed literally (ydotool key -- -)
     "+": "-",
     # Danish ? is shift on the same key as +
