@@ -63,16 +63,22 @@ def is_ydotoold_installed() -> bool:
 
 
 def _ydotool_socket_candidates() -> list[str]:
-    candidates = []
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def add(path: str) -> None:
+        if path and path not in seen:
+            seen.add(path)
+            candidates.append(path)
+
     if os.environ.get("YDOTOOL_SOCKET"):
-        candidates.append(os.environ["YDOTOOL_SOCKET"])
+        add(os.environ["YDOTOOL_SOCKET"])
     runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
     if runtime_dir:
-        candidates.append(os.path.join(runtime_dir, ".ydotool_socket"))
-    candidates.extend([
-        os.path.join(os.path.expanduser("~"), ".ydotool_socket"),
-        "/tmp/.ydotool_socket",
-    ])
+        add(os.path.join(runtime_dir, ".ydotool_socket"))
+    add(os.path.join(os.path.expanduser("~"), ".ydotool_socket"))
+    # Last resort only; often a stale socket from an old root-run daemon.
+    add("/tmp/.ydotool_socket")
     return candidates
 
 
@@ -131,10 +137,37 @@ def _ydotoold_error_message(socket_path: str) -> str:
     return GNOME_YDOTOOL_HELP
 
 
+def _remove_stale_socket(path: str) -> None:
+    if not os.path.exists(path) or not _socket_owned_by_us(path):
+        return
+    if _ydotoold_backend_available(path):
+        return
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
+def _try_start_ydotoold_service() -> bool:
+    if not shutil.which("systemctl"):
+        return False
+    for unit in ("ydotoold.service", "ydotoold.socket"):
+        result = subprocess.run(
+            ["systemctl", "--user", "start", unit],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            time.sleep(0.2)
+            return True
+    return False
+
+
 def _start_ydotoold(socket_path: str) -> None:
     socket_dir = os.path.dirname(socket_path)
     if socket_dir:
         os.makedirs(socket_dir, exist_ok=True)
+    _remove_stale_socket(socket_path)
     subprocess.Popen(
         [
             "ydotoold",
@@ -148,17 +181,32 @@ def _start_ydotoold(socket_path: str) -> None:
 
 
 def ensure_ydotoold() -> str:
-    for path in _ydotool_socket_candidates():
-        if _ydotoold_backend_available(path):
-            return path
+    def first_available_socket() -> str | None:
+        for candidate in _ydotool_socket_candidates():
+            if _ydotoold_backend_available(candidate):
+                return candidate
+        return None
+
+    existing = first_available_socket()
+    if existing:
+        os.environ["YDOTOOL_SOCKET"] = existing
+        return existing
 
     socket_path = _default_ydotool_socket()
-    if is_ydotoold_installed():
+    if not is_ydotoold_installed():
+        raise RuntimeError(_ydotoold_error_message(socket_path))
+
+    _try_start_ydotoold_service()
+    started = first_available_socket()
+    if not started:
         _start_ydotoold(socket_path)
-        for _ in range(30):
-            time.sleep(0.1)
-            if _ydotoold_backend_available(socket_path):
-                return socket_path
+
+    for _ in range(50):
+        time.sleep(0.1)
+        started = first_available_socket()
+        if started:
+            os.environ["YDOTOOL_SOCKET"] = started
+            return started
 
     raise RuntimeError(_ydotoold_error_message(socket_path))
 

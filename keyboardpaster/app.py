@@ -4,6 +4,10 @@ import subprocess
 import importlib.resources
 import keyboardpaster
 
+from keyboardpaster.bootstrap import configure_kivy_environment
+
+configure_kivy_environment()
+
 from kivymd.app import MDApp
 from kivy.properties import ObjectProperty, StringProperty
 from kivy.uix.textinput import TextInput
@@ -18,11 +22,8 @@ from kivymd.uix.textfield import MDTextField
 from keyboardpaster.keyboard_input import type_string
 from keyboardpaster.keyboard_layout_detector import get_keyboard_layout
 from keyboardpaster.modules.autoupdate import autoupdate
-from keyboardpaster.shared_resources import app_version
-
-# Fix Focus Behaviour
-import os
-os.environ["SDL_MOUSE_FOCUS_CLICKTHROUGH"] = '1'
+from keyboardpaster.shared_resources import app_version, app_icon_path
+from keyboardpaster.desktop import ensure_user_desktop_entry
 
 SPECIAL_CHARS_SHIFT = {
     'EN_US': {
@@ -121,6 +122,9 @@ class KeyboardPasterApp(MDApp):
         Clock.schedule_once(self.set_profile, 1)
         self.title = f"Keyboard Paster v{app_version}"
         Window.size = (1000, 700)
+        icon = app_icon_path()
+        if icon is not None:
+            Window.set_icon(str(icon))
 
         with importlib.resources.path(keyboardpaster, "keyboardpaster_app.kv") as kv_file_path:
             return Builder.load_file(str(kv_file_path))
@@ -384,6 +388,7 @@ class KeyboardPasterApp(MDApp):
 
 
 def main():
+    ensure_user_desktop_entry()
     autoupdate()
     KeyboardPasterApp().run()
 

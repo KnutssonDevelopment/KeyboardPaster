@@ -15,8 +15,15 @@ setup(
     url="https://github.com/KnutssonDevelopment/KeyboardPaster",
     packages=find_packages(),
     package_data={
-        "keyboardpaster": ["keyboardpaster_app.kv"],
+        "keyboardpaster": [
+            "keyboardpaster_app.kv",
+            "res/images/keyboardpaster.png",
+        ],
     },
+    data_files=[
+        ("share/applications", ["keyboardpaster.desktop"]),
+        ("share/icons/hicolor/256x256/apps", ["keyboardpaster/res/images/keyboardpaster.png"]),
+    ],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: End Users/Desktop",
