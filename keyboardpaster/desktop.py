@@ -19,27 +19,34 @@ def _desktop_exec_command() -> str:
     return sys.executable
 
 
-def _ensure_hicolor_theme_index(icon_theme_root: Path) -> None:
+def _remove_broken_hicolor_override() -> None:
+    """Remove incomplete user hicolor index that breaks other apps' icons."""
+    icon_theme_root = Path.home() / ".local/share/icons/hicolor"
     index_file = icon_theme_root / "index.theme"
-    if index_file.exists():
+    if not index_file.is_file():
         return
-    index_file.write_text(
-        "\n".join(
-            [
-                "[Icon Theme]",
-                "Name=Hicolor",
-                "Comment=Fallback icon theme",
-                "Directories=256x256/apps",
-                "",
-                "[256x256/apps]",
-                "Size=256",
-                "Context=Applications",
-                "Type=Fixed",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+
+    try:
+        text = index_file.read_text(encoding="utf-8")
+    except OSError:
+        return
+
+    # Only remove the incomplete theme we previously generated.
+    if "Directories=256x256/apps" not in text:
+        return
+    if "16x16/apps" in text or "scalable/apps" in text:
+        return
+
+    try:
+        index_file.unlink()
+    except OSError:
+        pass
+
+    cache_file = icon_theme_root / "icon-theme.cache"
+    try:
+        cache_file.unlink()
+    except OSError:
+        pass
 
 
 def ensure_user_desktop_entry() -> None:
@@ -50,26 +57,17 @@ def ensure_user_desktop_entry() -> None:
     if icon is None:
         return
 
-    apps_dir = Path.home() / ".local/share/applications"
-    icon_theme_root = Path.home() / ".local/share/icons/hicolor"
-    icon_dir = icon_theme_root / "256x256/apps"
-    apps_dir.mkdir(parents=True, exist_ok=True)
-    icon_dir.mkdir(parents=True, exist_ok=True)
-    _ensure_hicolor_theme_index(icon_theme_root)
+    _remove_broken_hicolor_override()
 
-    installed_icon = icon_dir / f"{APP_WM_CLASS}.png"
-    icon_changed = (
-        not installed_icon.exists()
-        or icon.read_bytes() != installed_icon.read_bytes()
-    )
-    if icon_changed:
+    apps_dir = Path.home() / ".local/share/applications"
+    data_dir = Path.home() / ".local/share/keyboardpaster"
+    apps_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    # Keep our icon outside the hicolor theme tree so we never break system icons.
+    installed_icon = data_dir / "keyboardpaster.png"
+    if not installed_icon.exists() or icon.read_bytes() != installed_icon.read_bytes():
         shutil.copy2(icon, installed_icon)
-        if shutil.which("gtk-update-icon-cache"):
-            subprocess.run(
-                ["gtk-update-icon-cache", "-f", "-t", str(icon_theme_root)],
-                check=False,
-                capture_output=True,
-            )
 
     desktop_path = apps_dir / f"{APP_WM_CLASS}.desktop"
     desktop_text = "\n".join(
@@ -80,14 +78,15 @@ def ensure_user_desktop_entry() -> None:
             "Name=Keyboard Paster",
             "Comment=Type text using simulated keyboard input",
             f"Exec={_desktop_exec_command()}",
-            f"Icon={APP_WM_CLASS}",
+            f"Icon={installed_icon}",
             "Terminal=false",
             "Categories=Utility;",
             f"StartupWMClass={APP_WM_CLASS}",
             "",
         ]
     )
-    if desktop_path.read_text(encoding="utf-8") if desktop_path.exists() else "" != desktop_text:
+    existing = desktop_path.read_text(encoding="utf-8") if desktop_path.exists() else ""
+    if existing != desktop_text:
         desktop_path.write_text(desktop_text, encoding="utf-8")
         if shutil.which("update-desktop-database"):
             subprocess.run(

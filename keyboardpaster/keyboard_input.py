@@ -346,6 +346,9 @@ DA_DK_YDOTOOL_COMBO = {
     "+": "-",
     # Danish ? is shift on the same key as +
     "?": "shift+-",
+    # Danish -/_ live on the physical slash key (ydotool -/ produces +/?)
+    "-": "/",
+    "_": "shift+/",
     "=": "shift+0",
     # AltGr bracket/digit keys (verified: alt_r+4 works for $)
     "{": "alt_r+7",

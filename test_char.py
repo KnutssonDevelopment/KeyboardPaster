@@ -121,6 +121,13 @@ CHAR_METHODS: dict[str, dict[str, tuple[str, callable]]] = {
         "shift_section": ("ydotool key shift+§", lambda: run_ydotool_key(["shift+§"])),
         "type": ("ydotool type '?'", lambda: run_ydotool_type("?")),
     },
+    "-": {
+        "slash": ("ydotool key /", lambda: run_ydotool_key(["/"])),
+        "slash_name": ("ydotool key slash", lambda: run_ydotool_key(["slash"])),
+        "KEY_SLASH": ("ydotool key KEY_SLASH", lambda: run_ydotool_key(["KEY_SLASH"])),
+        "type": ("ydotool type '-'", lambda: run_ydotool_type("-")),
+        "minus": ("ydotool key -- -", lambda: run_ydotool_key(["--", "-"])),
+    },
     "+": {
         "type": ("ydotool type '+'", lambda: run_ydotool_type("+")),
         "base_minus": ("ydotool key -", lambda: run_ydotool_key(["-"])),
