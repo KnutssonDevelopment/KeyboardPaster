@@ -22,9 +22,9 @@
             width: 1
 
     MDLabel:
-        text: root.text_input_id[-1] if root.text_input_id else ""
+        text: (root.text_input_id.rsplit("_", 1)[-1] if root.text_input_id else "")
         size_hint_x: None
-        width: "28dp"
+        width: "36dp"
         halign: "center"
         valign: "middle"
         theme_text_color: "Custom"
@@ -34,7 +34,7 @@
 
     MDTextField:
         id: _text_input
-        hint_text: "Slot " + (root.text_input_id[-1] if root.text_input_id else "")
+        hint_text: "Slot " + (root.text_input_id.rsplit("_", 1)[-1] if root.text_input_id else "")
         multiline: False
         write_tab: False
         size_hint_x: 1
@@ -47,7 +47,7 @@
         text_color_focus: get_color_from_hex("#F2F2F2")
         hint_text_color_normal: get_color_from_hex("#A3A3A3")
         hint_text_color_focus: get_color_from_hex("#F5A623")
-
+        on_text: app.on_slot_text(self, self.text)
     MDCheckbox:
         id: _cb_execute
         size_hint: None, None
@@ -205,9 +205,13 @@ MDBoxLayout:
         padding: [16, 12, 16, 0]
 
         MDScrollView:
+            size_hint_y: 1
+            do_scroll_x: False
+            do_scroll_y: True
             bar_width: "6dp"
             bar_color: get_color_from_hex("#F5A623")
             bar_inactive_color: get_color_from_hex("#333333")
+            scroll_type: ["bars", "content"]
 
             MDBoxLayout:
                 spacing: 10
@@ -216,27 +220,6 @@ MDBoxLayout:
                 orientation: "vertical"
                 size_hint_y: None
                 height: self.minimum_height
-
-                InputFieldButton:
-                    text_input_id: "input_text_0"
-                InputFieldButton:
-                    text_input_id: "input_text_1"
-                InputFieldButton:
-                    text_input_id: "input_text_2"
-                InputFieldButton:
-                    text_input_id: "input_text_3"
-                InputFieldButton:
-                    text_input_id: "input_text_4"
-                InputFieldButton:
-                    text_input_id: "input_text_5"
-                InputFieldButton:
-                    text_input_id: "input_text_6"
-                InputFieldButton:
-                    text_input_id: "input_text_7"
-                InputFieldButton:
-                    text_input_id: "input_text_8"
-                InputFieldButton:
-                    text_input_id: "input_text_9"
 
         # Footer toolbar
         MDBoxLayout:

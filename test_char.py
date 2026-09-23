@@ -202,6 +202,19 @@ CHAR_METHODS: dict[str, dict[str, tuple[str, callable]]] = {
             ),
         ),
     },
+    "~": {
+        "alt_r_rbrack": ("ydotool key alt_r+]", lambda: run_ydotool_key(["alt_r+]"])),
+        "alt_r_rbrack_space": (
+            "ydotool key alt_r+] space",
+            lambda: run_ydotool_key(["alt_r+]", "space"]),
+        ),
+        "keycodes": (
+            "ydotool key 100:1 27:1 27:0 100:0",
+            lambda: run_ydotool_key(["100:1", "27:1", "27:0", "100:0"]),
+        ),
+        "type": ("ydotool type '~'", lambda: run_ydotool_type("~")),
+        "shift_grave": ("ydotool key shift+`", lambda: run_ydotool_key(["shift+`"])),
+    },
 }
 
 

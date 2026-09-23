@@ -9,11 +9,13 @@ from keyboardpaster.bootstrap import configure_kivy_environment
 configure_kivy_environment()
 
 from kivymd.app import MDApp
-from kivy.properties import ObjectProperty, StringProperty
+from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.uix.textinput import TextInput
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivy.factory import Factory
+from kivy.metrics import dp
 from kivymd.uix.selectioncontrol.selectioncontrol import MDCheckbox
 from kivymd.uix.button.button import MDRaisedButton
 from kivymd.uix.dialog import MDDialog
@@ -45,9 +47,21 @@ SPECIAL_CHARS_ALT_GR = {
     'EN_US': {},
     'DA_DK': {
         '$': '4', '£': '3', '@': '2', '{': '7', '}': '0', '[': '8',
-        ']': '9', '|': '´', '€': 'E'
+        ']': '9', '|': '´', '€': 'E',
+        # ¨ key (physical ]); used by pynput path. ydotool uses DA_DK_YDOTOOL_COMBO.
+        '~': ']',
     }
 }
+
+# Dynamic window sizing around slots (matches keyboardpaster_app.kv dp values)
+WINDOW_WIDTH = int(dp(960))
+HEADER_HEIGHT = int(dp(68))
+FOOTER_HEIGHT = int(dp(72))
+BODY_TOP_PADDING = int(dp(12))
+SLOT_HEIGHT = int(dp(56))
+SLOT_SPACING = int(dp(10))
+SLOT_AREA_PADDING_V = int(dp(16))  # container padding top+bottom
+MAX_WINDOW_HEIGHT = int(dp(720))
 
 """
 SPECIAL_CHARS_SPACE = {
@@ -105,6 +119,7 @@ class KeyboardPasterApp(MDApp):
     version_text = StringProperty(f"v{app_version}")
     start_delay = ObjectProperty(None)
     layout = 'EN_US'
+    _updating_slots = BooleanProperty(False)
 
     def __init__(self):
         super().__init__()
@@ -120,10 +135,9 @@ class KeyboardPasterApp(MDApp):
         self.read_config()
 
         self.detect_keyboard_layout()
-        #Clock.schedule_once(self.load_inputs, 1)
         Clock.schedule_once(self.set_profile, 1)
         self.title = f"Keyboard Paster v{app_version}"
-        Window.size = (1040, 760)
+        Window.size = (WINDOW_WIDTH, self._height_for_slot_count(1))
         icon = app_icon_path()
         if icon is not None:
             Window.set_icon(str(icon))
@@ -134,32 +148,132 @@ class KeyboardPasterApp(MDApp):
     def on_stop(self):
         pass
 
+    @staticmethod
+    def _height_for_slot_count(slot_count: int) -> int:
+        n = max(1, slot_count)
+        slots_area = SLOT_AREA_PADDING_V + n * SLOT_HEIGHT + max(0, n - 1) * SLOT_SPACING
+        return HEADER_HEIGHT + BODY_TOP_PADDING + slots_area + FOOTER_HEIGHT
+
+    def update_window_height(self):
+        desired = self._height_for_slot_count(len(self._ordered_slots()))
+        height = min(desired, MAX_WINDOW_HEIGHT)
+        if Window.size[0] != WINDOW_WIDTH or Window.size[1] != height:
+            Window.size = (WINDOW_WIDTH, height)
+
+    def _slot_container(self):
+        return self.root.ids["input_fields_container"]
+
+    def _ordered_slots(self):
+        # Kivy children are reverse insertion order.
+        return list(reversed(self._slot_container().children))
+
+    @staticmethod
+    def _slot_text_input(slot):
+        for child in slot.children:
+            if isinstance(child, TextInput):
+                return child
+        return None
+
+    @staticmethod
+    def _slot_secret_checkbox(slot):
+        for child in slot.children:
+            if isinstance(child, MDCheckbox) and getattr(child, "secret_checkbox", False):
+                return child
+        return None
+
+    def _renumber_slots(self):
+        for index, slot in enumerate(self._ordered_slots()):
+            slot.text_input_id = f"input_text_{index}"
+
+    def add_slot(self, text: str = "", secret: bool = False):
+        container = self._slot_container()
+        index = len(container.children)
+        slot = Factory.InputFieldButton()
+        slot.text_input_id = f"input_text_{index}"
+        container.add_widget(slot)
+
+        text_input = self._slot_text_input(slot)
+        secret_cb = self._slot_secret_checkbox(slot)
+
+        previous = self._updating_slots
+        self._updating_slots = True
+        try:
+            if text_input is not None:
+                text_input.text = text
+                text_input.password = bool(secret)
+            if secret_cb is not None:
+                secret_cb.active = bool(secret)
+        finally:
+            self._updating_slots = previous
+
+        return slot
+
+    def clear_slots(self):
+        self._slot_container().clear_widgets()
+
+    def ensure_trailing_empty_slot(self, *_args):
+        if self._updating_slots:
+            return
+
+        self._updating_slots = True
+        try:
+            slots = self._ordered_slots()
+            if not slots:
+                self.add_slot()
+                self._renumber_slots()
+                return
+
+            # Remove extra trailing empty slots (keep exactly one empty at the end).
+            while len(slots) > 1:
+                last = slots[-1]
+                prev = slots[-2]
+                last_text = self._slot_text_input(last)
+                prev_text = self._slot_text_input(prev)
+                last_empty = last_text is None or not last_text.text.strip()
+                prev_empty = prev_text is None or not prev_text.text.strip()
+                if last_empty and prev_empty:
+                    self._slot_container().remove_widget(last)
+                    slots = self._ordered_slots()
+                    continue
+                break
+
+            last = self._ordered_slots()[-1]
+            last_text = self._slot_text_input(last)
+            if last_text is not None and last_text.text.strip():
+                self.add_slot()
+
+            self._renumber_slots()
+        finally:
+            self._updating_slots = False
+        self.update_window_height()
+
+    def on_slot_text(self, _instance, _value):
+        self.ensure_trailing_empty_slot()
+
     def read_config(self):
         try:
             with open(self.json_config, "r", encoding='utf-8') as file:
                 self.config = json.load(file)
         except FileNotFoundError:
-            pass
+            self.config = None
         except AttributeError:
-            pass
+            self.config = None
         except json.JSONDecodeError:
-            pass
+            self.config = None
         except ValueError:
-            pass
+            self.config = None
         except KeyError:
-            pass
+            self.config = None
 
-        if 'profiles' in self.config:
+        if not self.config:
+            self.config = {'profiles': {'DEFAULT': {}}}
+        elif 'profiles' in self.config:
             pass
         elif 'input_text_0' in self.config:
             values = self.config
-            self.config = dict()
-            self.config['profiles'] = dict()
-            self.config['profiles']['DEFAULT'] = values
+            self.config = {'profiles': {'DEFAULT': values}}
         else:
-            self.config = dict()
-            self.config['profiles'] = dict()
-            self.config['profiles']['DEFAULT'] = dict()
+            self.config = {'profiles': {'DEFAULT': {}}}
 
     def write_config(self):
         with open(self.json_config, "w", encoding='utf-8') as file:
@@ -255,8 +369,10 @@ class KeyboardPasterApp(MDApp):
 
     def set_profile(self, dt=None, profile=None):
         profile_selector = self.root.ids['profile_selector']
-        profile_name = "DEFAULT"
-        saved_inputs = list()
+
+        if not self.config or 'profiles' not in self.config or not self.config['profiles']:
+            self.config = self.config or {}
+            self.config['profiles'] = {'DEFAULT': {}}
 
         if profile is None:
             profile_name = list(self.config['profiles'].keys())[0]
@@ -271,64 +387,53 @@ class KeyboardPasterApp(MDApp):
         profile_selector = self.root.ids['profile_selector']
         profile_name = profile_selector.text.strip()
 
-        input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
-        input_fields = [x for x in input_field_buttons if isinstance(x, TextInput)]
-        checkboxes = [x for x in input_field_buttons if isinstance(x, MDCheckbox) and getattr(x, 'secret_checkbox', False)]
+        profile_values = {}
+        if self.config and profile_name in self.config.get('profiles', {}):
+            profile_values = self.config['profiles'][profile_name] or {}
 
-        profile_values = dict()
+        def sort_key(item):
+            key = item[0]
+            try:
+                return int(str(key).rsplit("_", 1)[-1])
+            except ValueError:
+                return 0
 
-        for input_field in input_fields:
-            input_field.text = ""
+        filled = []
+        for _name, value in sorted(profile_values.items(), key=sort_key):
+            if isinstance(value, (list, tuple)) and len(value) >= 2:
+                text, secret_state = value[0], value[1]
+            else:
+                text, secret_state = value, False
+            if text:
+                filled.append((text, bool(secret_state)))
 
-        for checkbox in checkboxes:
-            checkbox.active = False
-
-        if profile_name in self.config['profiles']:
-            profile_values = self.config['profiles'][profile_name]
-
-            if len(profile_values.items()) > 1:
-                for input_field in input_fields:
-                    for name, (text, secret_state) in profile_values.items():
-                        # Set text for TextInput
-                        if input_field.parent.text_input_id == name:
-                            input_field.text = text
-                            break  # Found the matching input field, no need to continue the loop
-
-                    # Set state for corresponding checkbox and adjust text visibility
-                    for checkbox in checkboxes:
-                        if checkbox.parent.text_input_id == name:
-                            checkbox.active = secret_state
-                            for input_field in input_fields:
-                                if input_field.parent.text_input_id == name:
-                                    input_field.password = secret_state  # Hide text if checkbox is checked
-                                    break  # Found the matching checkbox, no need to continue the loop
-
+        self.clear_slots()
+        self._updating_slots = True
+        try:
+            for text, secret_state in filled:
+                self.add_slot(text=text, secret=secret_state)
+        finally:
+            self._updating_slots = False
+        self.ensure_trailing_empty_slot()
+        self.update_window_height()
 
     def save_inputs(self):
         profile_selector = self.root.ids['profile_selector']
         profile_name = profile_selector.text.strip()
 
-        # Assuming `input_field_buttons` contains all relevant child widgets,
-        # including both TextInput and MDCheckbox widgets.
-        input_field_buttons = sum([x.children for x in self.root.ids['input_fields_container'].children], [])
-
-        # Build a dictionary with `text_input_id` as keys.
-        # The values will now be a tuple (or dict) with the text and the checkbox state.
         input_fields = {}
-        for child in input_field_buttons:
-            if isinstance(child, TextInput) and child.text:
-                # Find the corresponding MDCheckbox for 'secret' state by looking at siblings or parent's children.
-                # Assuming MDCheckbox with secret_checkbox set to true is a sibling or closely located.
-                cb_secret = next((x for x in child.parent.children if isinstance(x, MDCheckbox) and getattr(x, 'secret_checkbox', False)), None)
-                if cb_secret is not None:
-                    secret_state = cb_secret.active  # Or use `.state` based on your checkbox implementation.
-                else:
-                    secret_state = False  # Default state if not found.
+        for slot in self._ordered_slots():
+            text_input = self._slot_text_input(slot)
+            if text_input is None or not text_input.text:
+                continue
+            secret_cb = self._slot_secret_checkbox(slot)
+            secret_state = bool(secret_cb.active) if secret_cb is not None else False
+            input_fields[slot.text_input_id] = (text_input.text, secret_state)
 
-                # Store the tuple of text and secret_state in the dictionary.
-                input_fields[child.parent.text_input_id] = (child.text, secret_state)
-
-
+        if not self.config:
+            self.config = {'profiles': {}}
+        if 'profiles' not in self.config:
+            self.config['profiles'] = {}
         self.config['profiles'][profile_name] = input_fields
         self.write_config()
 

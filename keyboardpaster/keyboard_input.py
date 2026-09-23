@@ -357,6 +357,9 @@ DA_DK_YDOTOOL_COMBO = {
     "]": "alt_r+9",
     # Danish | is AltGr on the key next to + (ydotool exposes it as '=')
     "|": "alt_r+=",
+    # Danish ~ is AltGr on the ¨ key (US ]); ydotool type '~' sends
+    # Shift+Grave which becomes §/½ — or Shift+4 → ¤ — on DA_DK.
+    "~": "alt_r+]",
 }
 
 
