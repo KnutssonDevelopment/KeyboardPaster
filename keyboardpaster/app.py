@@ -102,6 +102,7 @@ def type_string_with_delay(
 
 class KeyboardPasterApp(MDApp):
     layout = StringProperty('EN_US')
+    version_text = StringProperty(f"v{app_version}")
     start_delay = ObjectProperty(None)
     layout = 'EN_US'
 
@@ -111,9 +112,10 @@ class KeyboardPasterApp(MDApp):
         self.json_config = 'saved_inputs.json'
 
     def build(self):
-        self.theme_cls.primary_palette = "DeepPurple"  # Change to your desired primary color
-        self.theme_cls.accent_palette = "Amber"  # Change to your desired accent color
-        self.theme_cls.theme_style = "Light"  # Set the theme to either "Light" or "Dark"
+        self.theme_cls.primary_palette = "Amber"
+        self.theme_cls.accent_palette = "Orange"
+        self.theme_cls.theme_style = "Dark"
+        Window.clearcolor = (0.08, 0.08, 0.08, 1)
 
         self.read_config()
 
@@ -121,7 +123,7 @@ class KeyboardPasterApp(MDApp):
         #Clock.schedule_once(self.load_inputs, 1)
         Clock.schedule_once(self.set_profile, 1)
         self.title = f"Keyboard Paster v{app_version}"
-        Window.size = (1000, 700)
+        Window.size = (1040, 760)
         icon = app_icon_path()
         if icon is not None:
             Window.set_icon(str(icon))

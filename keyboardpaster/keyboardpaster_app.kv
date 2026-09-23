@@ -1,45 +1,105 @@
+#:import get_color_from_hex kivy.utils.get_color_from_hex
+#:import dp kivy.metrics.dp
+
 <InputFieldButton@BoxLayout>:
     text_input_id: ""
     orientation: "horizontal"
     size_hint_y: None
-    height: "40dp"
+    height: "56dp"
+    padding: [14, 6]
+    spacing: 8
+    canvas.before:
+        Color:
+            rgba: get_color_from_hex("#1E1E1E")
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [10, 10, 10, 10]
+        Color:
+            rgba: get_color_from_hex("#333333")
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 10)
+            width: 1
+
+    MDLabel:
+        text: root.text_input_id[-1] if root.text_input_id else ""
+        size_hint_x: None
+        width: "28dp"
+        halign: "center"
+        valign: "middle"
+        theme_text_color: "Custom"
+        text_color: get_color_from_hex("#F5A623")
+        font_size: "15sp"
+        bold: True
 
     MDTextField:
         id: _text_input
-        hint_text: root.text_input_id if not root.text_input_id else f"Clipboard Slot {root.text_input_id[-1]}"
+        hint_text: "Slot " + (root.text_input_id[-1] if root.text_input_id else "")
         multiline: False
         write_tab: False
+        size_hint_x: 1
+        mode: "fill"
+        fill_color_normal: get_color_from_hex("#262626")
+        fill_color_focus: get_color_from_hex("#262626")
+        line_color_normal: get_color_from_hex("#333333")
+        line_color_focus: get_color_from_hex("#F5A623")
+        text_color_normal: get_color_from_hex("#F2F2F2")
+        text_color_focus: get_color_from_hex("#F2F2F2")
+        hint_text_color_normal: get_color_from_hex("#A3A3A3")
+        hint_text_color_focus: get_color_from_hex("#F5A623")
 
     MDCheckbox:
         id: _cb_execute
-        size_hint: 0.05, 1
+        size_hint: None, None
+        size: "28dp", "28dp"
+        pos_hint: {"center_y": 0.5}
+        color_active: get_color_from_hex("#F5A623")
 
     MDLabel:
-        text: "Execute"
-        size_hint: 0.1, 1
+        text: "Run"
+        size_hint_x: None
+        width: "36dp"
+        theme_text_color: "Custom"
+        text_color: get_color_from_hex("#A3A3A3")
+        font_size: "12sp"
+        valign: "middle"
 
     MDCheckbox:
         id: _cb_secret
-        size_hint: 0.05, 1
+        size_hint: None, None
+        size: "28dp", "28dp"
+        pos_hint: {"center_y": 0.5}
         on_press: app.hide_text(_text_input, _cb_secret)
         secret_checkbox: True
+        color_active: get_color_from_hex("#F5A623")
 
     MDLabel:
-        text: "Secret"
-        size_hint: 0.1, 1
+        text: "Hide"
+        size_hint_x: None
+        width: "40dp"
+        theme_text_color: "Custom"
+        text_color: get_color_from_hex("#A3A3A3")
+        font_size: "12sp"
+        valign: "middle"
 
     MDIconButton:
         icon: "keyboard"
+        theme_icon_color: "Custom"
+        icon_color: get_color_from_hex("#F5A623")
         on_press: app.type_text(_text_input.text, _cb_execute)
 
     MDIconButton:
         icon: "content-copy"
+        theme_icon_color: "Custom"
+        icon_color: get_color_from_hex("#A3A3A3")
         on_press: app.copy_text(_text_input.text, _cb_execute)
 
 <ProfileButton@MDFlatButton>:
     text: "DEFAULT"
     size_hint_y: None
     height: 44
+    theme_text_color: "Custom"
+    text_color: get_color_from_hex("#F2F2F2")
     on_release:
         root.select(self.text)
 
@@ -47,48 +107,111 @@
 
 MDBoxLayout:
     orientation: "vertical"
+    canvas.before:
+        Color:
+            rgba: get_color_from_hex("#141414")
+        Rectangle:
+            pos: self.pos
+            size: self.size
 
-    MDTopAppBar:
+    # Custom header — not MDTopAppBar (avoids title collision)
+    MDBoxLayout:
+        orientation: "horizontal"
+        size_hint_y: None
+        height: "68dp"
+        padding: [20, 10]
+        spacing: 12
+        canvas.before:
+            Color:
+                rgba: get_color_from_hex("#1E1E1E")
+            Rectangle:
+                pos: self.pos
+                size: self.size
+            Color:
+                rgba: get_color_from_hex("#333333")
+            Line:
+                points: [self.x, self.y, self.right, self.y]
+                width: 1
+
         MDBoxLayout:
             orientation: "horizontal"
+            size_hint_x: 0.55
+            spacing: 12
+            padding: [0, 4, 0, 4]
 
             MDLabel:
                 id: title_bar
                 text: "Keyboard Paster"
-                halign: "center"
+                size_hint_x: None
+                width: "190dp"
+                halign: "left"
+                valign: "middle"
                 theme_text_color: "Custom"
-                text_color: 1, 1, 1, 1
-                font_size: '30sp'
+                text_color: get_color_from_hex("#F2F2F2")
+                font_size: "22sp"
+                bold: True
 
-            MDBoxLayout:
-                orientation: "horizontal"
-                size_hint_x: .3
+            MDLabel:
+                id: version_label
+                text: app.version_text
+                size_hint_x: None
+                width: "64dp"
+                size_hint_y: None
+                height: "26dp"
+                pos_hint: {"center_y": 0.5}
+                halign: "center"
+                valign: "middle"
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#F5A623")
+                font_size: "12sp"
+                canvas.before:
+                    Color:
+                        rgba: get_color_from_hex("#3A2E14")
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [8, 8, 8, 8]
 
-                MDLabel:
-                    text: "Profile:"
-                    halign: 'right'
-                    theme_text_color: "Custom"
-                    text_color: 1, 1, 1, 1
-                    font_size: '22sp'
+            Widget:
+                size_hint_x: 1
 
-                MDFlatButton:
-                    id: profile_selector
-                    text: "DEFAULT"
-                    pos_hint: {'center_y': 0.5}
-                    theme_text_color: "Custom"
-                    text_color: 1, 1, 1, 1
-                    font_size: '22sp'
-                    on_parent: profile_dropdown.dismiss()
-                    on_release: profile_dropdown.open(self)
+        MDBoxLayout:
+            orientation: "horizontal"
+            size_hint_x: 0.45
+            spacing: 8
+
+            MDLabel:
+                text: "Profile"
+                size_hint_x: None
+                width: "70dp"
+                halign: "right"
+                valign: "middle"
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#A3A3A3")
+                font_size: "14sp"
+
+            MDFlatButton:
+                id: profile_selector
+                text: "DEFAULT"
+                pos_hint: {"center_y": 0.5}
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#F2F2F2")
+                font_size: "15sp"
+                on_parent: profile_dropdown.dismiss()
+                on_release: profile_dropdown.open(self)
 
     MDBoxLayout:
         orientation: "vertical"
+        padding: [16, 12, 16, 0]
 
         MDScrollView:
+            bar_width: "6dp"
+            bar_color: get_color_from_hex("#F5A623")
+            bar_inactive_color: get_color_from_hex("#333333")
+
             MDBoxLayout:
                 spacing: 10
-                padding: 50
-
+                padding: [4, 4, 4, 12]
                 id: input_fields_container
                 orientation: "vertical"
                 size_hint_y: None
@@ -115,26 +238,52 @@ MDBoxLayout:
                 InputFieldButton:
                     text_input_id: "input_text_9"
 
+        # Footer toolbar
         MDBoxLayout:
-            spacing: 10
-            padding: 20
-            size_hint_y: 0.15
-            height: "40dp"
             orientation: "horizontal"
+            size_hint_y: None
+            height: "72dp"
+            padding: [16, 10]
+            spacing: 12
+            canvas.before:
+                Color:
+                    rgba: get_color_from_hex("#1E1E1E")
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: get_color_from_hex("#333333")
+                Line:
+                    points: [self.x, self.top, self.right, self.top]
+                    width: 1
 
             MDLabel:
-                text: "Keyboard layout:"
-                theme_text_color: "Secondary"
+                text: "Layout"
+                size_hint_x: None
+                width: "56dp"
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#A3A3A3")
+                font_size: "13sp"
+                valign: "middle"
 
             Spinner:
                 id: layout_spinner
                 text: app.layout
                 values: ["EN_US", "DA_DK"]
+                size_hint_x: None
+                width: "100dp"
+                background_color: get_color_from_hex("#262626")
+                color: get_color_from_hex("#F2F2F2")
                 on_text: app.set_layout(self.text)
 
             MDLabel:
-                text: "Start delay:"
-                theme_text_color: "Secondary"
+                text: "Start"
+                size_hint_x: None
+                width: "44dp"
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#A3A3A3")
+                font_size: "13sp"
+                valign: "middle"
 
             MDSlider:
                 id: start_delay
@@ -142,15 +291,27 @@ MDBoxLayout:
                 max: 10
                 step: 1
                 value: 2
-                orientation: "horizontal"
+                size_hint_x: 0.18
+                hint: False
+                color: get_color_from_hex("#F5A623")
 
             MDLabel:
-                text: str(int(start_delay.value)) + " seconds"
-                theme_text_color: "Secondary"
+                text: str(int(start_delay.value)) + "s"
+                size_hint_x: None
+                width: "36dp"
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#F2F2F2")
+                font_size: "13sp"
+                valign: "middle"
 
             MDLabel:
-                text: "Modifier delay:"
-                theme_text_color: "Secondary"
+                text: "Modifier"
+                size_hint_x: None
+                width: "60dp"
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#A3A3A3")
+                font_size: "13sp"
+                valign: "middle"
 
             MDSlider:
                 id: mod_delay
@@ -158,15 +319,28 @@ MDBoxLayout:
                 max: 1
                 step: 0.1
                 value: 0.1
+                size_hint_x: 0.18
+                hint: False
+                color: get_color_from_hex("#F5A623")
                 on_value: app.update_slider_label(self.value)
-                orientation: "horizontal"
 
             MDLabel:
-                text: str(round(mod_delay.value, 1)) + " seconds"
-                theme_text_color: "Secondary"
+                text: str(round(mod_delay.value, 1)) + "s"
+                size_hint_x: None
+                width: "40dp"
+                theme_text_color: "Custom"
+                text_color: get_color_from_hex("#F2F2F2")
+                font_size: "13sp"
+                valign: "middle"
+
+            Widget:
+                size_hint_x: 0.05
 
             MDRaisedButton:
-                text: "Save Inputs"
+                text: "Save"
+                md_bg_color: get_color_from_hex("#F5A623")
+                text_color: get_color_from_hex("#1A1200")
+                font_size: "14sp"
                 on_release: app.save_inputs()
 
     CustomDropDown:
