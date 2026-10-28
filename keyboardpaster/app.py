@@ -16,6 +16,7 @@ from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.factory import Factory
 from kivy.metrics import dp
+from kivy.uix.dropdown import DropDown
 from kivymd.uix.selectioncontrol.selectioncontrol import MDCheckbox
 from kivymd.uix.button.button import MDRaisedButton
 from kivymd.uix.dialog import MDDialog
@@ -125,6 +126,8 @@ class KeyboardPasterApp(MDApp):
         super().__init__()
         self.config = None
         self.json_config = 'saved_inputs.json'
+        # Strong ref: KV ids only keep a WeakProxy, so DropDown was GC'd after dismiss.
+        self.profile_dropdown = DropDown()
 
     def build(self):
         self.theme_cls.primary_palette = "Amber"
@@ -326,15 +329,14 @@ class KeyboardPasterApp(MDApp):
         dialog.open()
 
     def close_dropdown(self):
-        profile_dropdown = self.root.ids['profile_dropdown']
-        profile_dropdown.dismiss()
+        self.profile_dropdown.dismiss()
 
     def handle_dropdown(self, profile):
         self.set_profile(None, profile)
         self.close_dropdown()
 
     def generate_profile_selector(self):
-        profile_dropdown = self.root.ids['profile_dropdown']
+        profile_dropdown = self.profile_dropdown
         profile_selector = self.root.ids['profile_selector']
         try:
             profiles = list(self.config['profiles'].keys())
@@ -342,10 +344,7 @@ class KeyboardPasterApp(MDApp):
             profiles = ['DEFAULT']
         max_length = 7
 
-        # Removing existing widgets
-        for child in profile_dropdown.children:
-            for widget in reversed(child.children):
-                child.remove_widget(widget)
+        profile_dropdown.clear_widgets()
 
         btn = MDRaisedButton()
         btn.text = '- New -'
