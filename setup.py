@@ -39,9 +39,11 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "pynput",
-        "kivy",
-        "kivymd",
-        "requests"
+        "kivy>=2.2,<2.4",
+        # KivyMD 2.x pulls materialshapes → pycairo (needs libcairo2-dev to build).
+        # This app still uses the 1.2 widget API.
+        "kivymd>=1.2,<2",
+        "requests",
     ],
     extras_require={
         "windows": ["pywin32"],

@@ -1,2 +1,4 @@
-kivymd
+kivy>=2.2,<2.4
+kivymd>=1.2,<2
 pynput
+requests

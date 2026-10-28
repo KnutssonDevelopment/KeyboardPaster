@@ -6,10 +6,32 @@ A Python package to type text using the keyboard module. This is useful in situa
 - Paste 10 different strings using the keyboard
 - Save string for future usage
 
+## Install (Linux / pipx)
+
+```bash
+pipx install keyboardpaster
+```
+
+KivyMD is pinned to 1.x so pipx does not need to compile `pycairo`.
+
+If you install KivyMD 2.x yourself, or a dependency pulls in `pycairo`, install Cairo headers first:
+
+```bash
+sudo apt install libcairo2-dev pkg-config
+```
+
+On GNOME Wayland you also need `ydotool` / `ydotoold` for typing into other apps.
+
 ## Future features
 - Paste images as base64 code
 
 ## Changes
+### v0.1.26
+- BUGFIX: Pin KivyMD to 1.x so pipx install does not require pycairo/Cairo headers
+
+### v0.1.25
+- BUGFIX: Dropbox menu resulted in crash when multiple profiles were available
+
 ### v0.1.24
 - BUGFIX: Corrected Python requirement
 
