@@ -1,6 +1,5 @@
 import re
 import json
-import subprocess
 import importlib.resources
 import keyboardpaster
 
@@ -13,6 +12,7 @@ from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.uix.textinput import TextInput
 from kivy.lang import Builder
 from kivy.clock import Clock
+from kivy.core.clipboard import Clipboard
 from kivy.core.window import Window
 from kivy.factory import Factory
 from kivy.metrics import dp
@@ -461,14 +461,13 @@ class KeyboardPasterApp(MDApp):
     def show_type_error(self, error):
         MDDialog(title="Kan ikke sende tastaturinput", text=str(error)).open()
 
-    @staticmethod
-    def copy_text(input_text, _checkbox):
+    def copy_text(self, input_text, _checkbox):
         if not input_text:
-            # print("No text found")
             return
-
-        cmd = 'echo ' + input_text.strip() + '|clip'
-        subprocess.check_call(cmd, shell=True)
+        try:
+            Clipboard.copy(input_text)
+        except Exception as error:
+            MDDialog(title="Kan ikke kopiere", text=str(error)).open()
 
     @staticmethod
     def hide_text(_input_text, _checkbox):

@@ -26,6 +26,9 @@ On GNOME Wayland you also need `ydotool` / `ydotoold` for typing into other apps
 - Paste images as base64 code
 
 ## Changes
+### v0.1.27
+- BUGFIX: App would crash on linux when copying text
+
 ### v0.1.26
 - BUGFIX: Pin KivyMD to 1.x so pipx install does not require pycairo/Cairo headers
 

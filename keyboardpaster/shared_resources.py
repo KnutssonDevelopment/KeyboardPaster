@@ -1,6 +1,6 @@
 from pathlib import Path
 
-app_version = "0.1.26"
+app_version = "0.1.27"
 APP_WM_CLASS = "keyboardpaster"
 
 
