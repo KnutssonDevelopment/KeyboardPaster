@@ -285,6 +285,22 @@ SHIFT_KEYCODE = 42
 ALTGR_KEYCODE = 100
 ENTER_KEYCODE = 28
 
+# ydotool modifier names (combo left-hand side) → hold via name:1 / name:0
+YDOTOOL_MODIFIER_NAMES = {
+    "shift",
+    "leftshift",
+    "rightshift",
+    "ctrl",
+    "leftctrl",
+    "rightctrl",
+    "alt",
+    "alt_l",
+    "alt_r",
+    "altgr",
+    "meta",
+    "super",
+}
+
 DA_DK_BASE_KEYCODE = {
     "§": 41,
     "1": 2,
@@ -466,43 +482,68 @@ def _char_to_ydotool_combo(
     if len(char) == 1 and char.isascii() and char.isdigit():
         return char
 
+    # Literal " " is KEY_SPACE in ydotool 0.1.x; keep it in the key batch
+    # instead of flushing into a separate `ydotool type` call (extra delay).
+    if char == " ":
+        return " "
+
     return None
-
-
-def _ydotool_press_keycodes(
-    keycodes: list[str],
-    env: dict[str, str],
-    key_delay_ms: int,
-    mod_delay_ms: int = 0,
-) -> None:
-    if not keycodes:
-        return
-    args = ["ydotool", "key"]
-    if mod_delay_ms:
-        args.extend(["--delay", str(mod_delay_ms)])
-    if key_delay_ms:
-        args.extend(["--key-delay", str(key_delay_ms)])
-    args.extend(keycodes)
-    _run_command(args, env=env)
 
 
 def _ydotool_press_combos(
     combos: list[str],
     env: dict[str, str],
-    key_delay_ms: int,
-    mod_delay_ms: int = 0,
+    key_delay_ms: int = 0,
 ) -> None:
     if not combos:
         return
-    args = ["ydotool", "key"]
-    if mod_delay_ms:
-        args.extend(["--delay", str(mod_delay_ms)])
+    args = ["ydotool", "key", "--delay", "0"]
     if key_delay_ms:
         args.extend(["--key-delay", str(key_delay_ms)])
+    else:
+        args.extend(["--key-delay", "0"])
     # Needed for literal keys that look like options (e.g. "-").
     args.append("--")
     args.extend(combos)
     _run_command(args, env=env)
+
+
+def _combo_parts(combo: str) -> tuple[list[str], str]:
+    parts = [part.strip() for part in combo.split("+") if part.strip()]
+    if len(parts) <= 1:
+        return [], parts[0] if parts else combo
+    return parts[:-1], parts[-1]
+
+
+def _is_modifier_name(name: str) -> bool:
+    return name.lower() in YDOTOOL_MODIFIER_NAMES
+
+
+def _ydotool_press_modifier_combo(
+    combo: str,
+    env: dict[str, str],
+    key_delay_ms: int,
+    mod_delay_ms: int,
+) -> None:
+    """Press a modifier combo, honouring mod_delay as inter-event spacing.
+
+    Debian ydotool 0.1.x only supports combo syntax (e.g. shift+a). The
+    keycode form 42:1 / shift:1 is misparsed and types digits/letters instead
+    of holding the modifier. --key-delay spaces events inside the combo, so
+    shift is held for mod_delay before the key goes down.
+
+    The CLI returns before delayed daemon events finish, so we sleep for the
+    full sequence to avoid overlapping the next character.
+    """
+    mods, _key = _combo_parts(combo)
+    if not mods:
+        _ydotool_press_combos([combo], env, key_delay_ms)
+        return
+
+    hold_ms = max(mod_delay_ms if mod_delay_ms > 0 else key_delay_ms, 12)
+    _ydotool_press_combos([combo], env, hold_ms)
+    # mod↓ → key↓ → key↑ → mod↑  => 3 gaps
+    time.sleep((3 * hold_ms) / 1000.0)
 
 
 def _ydotool_type_plain(text: str, env: dict[str, str], key_delay_ms: int) -> None:
@@ -594,7 +635,7 @@ def _ydotool_send_backslash(
         _ydotool_type_gnome_backslash(env, key_delay_ms)
         time.sleep(0.1)
         return
-    _ydotool_press_combos(["\\"], env, key_delay_ms, mod_delay_ms)
+    _ydotool_press_combos(["\\"], env, key_delay_ms)
 
 
 def type_string_ydotool(
@@ -608,31 +649,37 @@ def type_string_ydotool(
 ) -> None:
     socket_path = ensure_ydotoold()
     env = _ydotool_env(socket_path)
-    key_delay_ms = max(12, int(delay * 1000))
+    key_delay_ms = max(0, int(delay * 1000))
     mod_delay_ms = max(0, int(mod_delay * 1000))
+    # ydotool default key-delay is 12ms; keep a small floor for plain taps.
+    plain_key_delay_ms = max(12, key_delay_ms) if key_delay_ms else 12
     pending: list[str] = []
 
     def flush_pending() -> None:
         if pending:
-            _ydotool_press_combos(pending, env, key_delay_ms, mod_delay_ms)
+            _ydotool_press_combos(pending, env, plain_key_delay_ms)
             pending.clear()
 
     for char in text:
         if char == "\\":
             flush_pending()
-            _ydotool_send_backslash(env, key_delay_ms, mod_delay_ms)
+            _ydotool_send_backslash(env, plain_key_delay_ms, mod_delay_ms)
             continue
 
-        keycodes = _char_keycode_sequence(char, layout, special_chars_shift, special_chars_alt_gr)
-        if keycodes:
-            flush_pending()
-            _ydotool_press_keycodes(keycodes, env, key_delay_ms, mod_delay_ms)
-            continue
-
+        # Skip keycode:1 sequences — broken on ydotool 0.1.x (types digits).
+        # Prefer combo syntax (shift+a, alt_r+4) which the daemon handles correctly.
         combo = _char_to_ydotool_combo(char, layout, special_chars_shift, special_chars_alt_gr)
         if combo is None:
             flush_pending()
-            _ydotool_type_plain(char, env, key_delay_ms)
+            _ydotool_type_plain(char, env, plain_key_delay_ms)
+            continue
+
+        mods, _key = _combo_parts(combo)
+        if mods:
+            flush_pending()
+            _ydotool_press_modifier_combo(combo, env, plain_key_delay_ms, mod_delay_ms)
+            if key_delay_ms:
+                time.sleep(key_delay_ms / 1000.0)
             continue
 
         pending.append(combo)
@@ -640,10 +687,7 @@ def type_string_ydotool(
     flush_pending()
 
     if end_line:
-        _run_command(
-            ["ydotool", "key", f"{ENTER_KEYCODE}:1", f"{ENTER_KEYCODE}:0"],
-            env=env,
-        )
+        _ydotool_press_combos(["enter"], env, plain_key_delay_ms)
 
 
 def _wayland_backend() -> str:
