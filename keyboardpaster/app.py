@@ -354,6 +354,58 @@ class KeyboardPasterApp(MDApp):
         )
         dialog.open()
 
+    def _current_profile_name(self):
+        return self.root.ids["profile_selector"].text.strip()
+
+    def confirm_delete_profile(self):
+        self.close_dropdown()
+        profile_name = self._current_profile_name()
+        if not profile_name:
+            return
+
+        profiles = self.config.get("profiles", {}) if self.config else {}
+        if profile_name not in profiles:
+            return
+        if len(profiles) <= 1:
+            MDDialog(
+                title="Cannot delete",
+                text="You must keep at least one profile.",
+            ).open()
+            return
+
+        dialog = MDDialog(
+            title="Delete profile",
+            text=f"Delete profile '{profile_name}'? This cannot be undone.",
+            buttons=[
+                MDRaisedButton(
+                    text="CANCEL",
+                    on_release=self.close_dialog,
+                ),
+                MDRaisedButton(
+                    text="DELETE",
+                    on_release=lambda x: self.delete_profile(profile_name, x),
+                ),
+            ],
+        )
+        dialog.open()
+
+    def delete_profile(self, profile_name, button_instance=None):
+        if button_instance is not None:
+            self.close_dialog(button_instance)
+
+        if not self.config or "profiles" not in self.config:
+            return
+
+        profiles = self.config["profiles"]
+        if profile_name not in profiles or len(profiles) <= 1:
+            return
+
+        del profiles[profile_name]
+        self.write_config()
+
+        next_profile = next(iter(profiles.keys()))
+        self.set_profile(None, next_profile)
+
     def close_dropdown(self):
         self.profile_dropdown.dismiss()
 
@@ -376,6 +428,12 @@ class KeyboardPasterApp(MDApp):
         btn.text = '- New -'
         btn.size_hint_y = None
         btn.bind(on_release=lambda x: self.create_new_profile())
+        profile_dropdown.add_widget(btn)
+
+        btn = MDRaisedButton()
+        btn.text = '- Delete -'
+        btn.size_hint_y = None
+        btn.bind(on_release=lambda x: self.confirm_delete_profile())
         profile_dropdown.add_widget(btn)
 
         for profile in profiles:
@@ -506,7 +564,7 @@ class KeyboardPasterApp(MDApp):
         )
 
     def show_type_error(self, error):
-        MDDialog(title="Kan ikke sende tastaturinput", text=str(error)).open()
+        MDDialog(title="Cannot send keyboard input", text=str(error)).open()
 
     def copy_text(self, input_text, _checkbox):
         if not input_text:
@@ -514,7 +572,7 @@ class KeyboardPasterApp(MDApp):
         try:
             Clipboard.copy(input_text)
         except Exception as error:
-            MDDialog(title="Kan ikke kopiere", text=str(error)).open()
+            MDDialog(title="Cannot copy", text=str(error)).open()
 
     @staticmethod
     def hide_text(_input_text, _checkbox):
