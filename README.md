@@ -3,8 +3,12 @@
 A Python package to type text using the keyboard module. This is useful in situation where copy and paste is prohibited
 
 ## Features
-- Paste 10 different strings using the keyboard
-- Save string for future usage
+- Dynamic paste slots (grows as you add text)
+- Name slots and save them per profile
+- Multiple profiles (create / switch / delete)
+- Per-profile start delay, modifier delay, and Run checkbox
+- Hide sensitive values in the UI
+- Copy to clipboard or type via keyboard (ydotool on GNOME Wayland)
 
 ## Install (Linux / pipx)
 
@@ -26,6 +30,13 @@ On GNOME Wayland you also need `ydotool` / `ydotoold` for typing into other apps
 - Paste images as base64 code
 
 ## Changes
+### v0.1.28
+- FEATURE: Name individual slots (saved per profile)
+- FEATURE: Delete profiles from the profile menu
+- FEATURE: Save start delay, modifier delay, and Run checkbox per profile
+- BUGFIX: Modifier delay now correctly holds Shift/AltGr before the key
+- BUGFIX: Spaces no longer introduce an extra typing delay
+
 ### v0.1.27
 - BUGFIX: App would crash on linux when copying text
 

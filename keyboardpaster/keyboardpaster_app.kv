@@ -21,20 +21,27 @@
             rounded_rectangle: (self.x, self.y, self.width, self.height, 10)
             width: 1
 
-    MDLabel:
-        text: (root.text_input_id.rsplit("_", 1)[-1] if root.text_input_id else "")
+    MDTextField:
+        id: _slot_name
+        hint_text: "Name"
+        multiline: False
+        write_tab: False
         size_hint_x: None
-        width: "36dp"
-        halign: "center"
-        valign: "middle"
-        theme_text_color: "Custom"
-        text_color: get_color_from_hex("#F5A623")
-        font_size: "15sp"
-        bold: True
+        width: "180dp"
+        name_field: True
+        mode: "fill"
+        fill_color_normal: get_color_from_hex("#262626")
+        fill_color_focus: get_color_from_hex("#262626")
+        line_color_normal: get_color_from_hex("#333333")
+        line_color_focus: get_color_from_hex("#F5A623")
+        text_color_normal: get_color_from_hex("#F5A623")
+        text_color_focus: get_color_from_hex("#F5A623")
+        hint_text_color_normal: get_color_from_hex("#A3A3A3")
+        hint_text_color_focus: get_color_from_hex("#F5A623")
 
     MDTextField:
         id: _text_input
-        hint_text: "Slot " + (root.text_input_id.rsplit("_", 1)[-1] if root.text_input_id else "")
+        hint_text: "Value"
         multiline: False
         write_tab: False
         size_hint_x: 1

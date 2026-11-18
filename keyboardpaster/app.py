@@ -179,7 +179,14 @@ class KeyboardPasterApp(MDApp):
     @staticmethod
     def _slot_text_input(slot):
         for child in slot.children:
-            if isinstance(child, TextInput):
+            if isinstance(child, TextInput) and not getattr(child, "name_field", False):
+                return child
+        return None
+
+    @staticmethod
+    def _slot_name_input(slot):
+        for child in slot.children:
+            if isinstance(child, TextInput) and getattr(child, "name_field", False):
                 return child
         return None
 
@@ -199,19 +206,20 @@ class KeyboardPasterApp(MDApp):
 
     @staticmethod
     def _parse_slot_value(value):
-        """Return (text, secret, run) from legacy or current saved slot values."""
+        """Return (text, secret, run, name) from legacy or current saved slot values."""
         if isinstance(value, (list, tuple)):
             text = value[0] if len(value) >= 1 else ""
             secret = bool(value[1]) if len(value) >= 2 else False
             run = bool(value[2]) if len(value) >= 3 else False
-            return text, secret, run
-        return value, False, False
+            name = value[3] if len(value) >= 4 else ""
+            return text, secret, run, str(name or "")
+        return value, False, False, ""
 
     def _renumber_slots(self):
         for index, slot in enumerate(self._ordered_slots()):
             slot.text_input_id = f"input_text_{index}"
 
-    def add_slot(self, text: str = "", secret: bool = False, run: bool = False):
+    def add_slot(self, text: str = "", secret: bool = False, run: bool = False, name: str = ""):
         container = self._slot_container()
         index = len(container.children)
         slot = Factory.InputFieldButton()
@@ -219,12 +227,15 @@ class KeyboardPasterApp(MDApp):
         container.add_widget(slot)
 
         text_input = self._slot_text_input(slot)
+        name_input = self._slot_name_input(slot)
         secret_cb = self._slot_secret_checkbox(slot)
         execute_cb = self._slot_execute_checkbox(slot)
 
         previous = self._updating_slots
         self._updating_slots = True
         try:
+            if name_input is not None:
+                name_input.text = name
             if text_input is not None:
                 text_input.text = text
                 text_input.password = bool(secret)
@@ -502,15 +513,15 @@ class KeyboardPasterApp(MDApp):
         for name, value in sorted(profile_values.items(), key=sort_key):
             if not str(name).startswith("input_text_"):
                 continue
-            text, secret_state, run_state = self._parse_slot_value(value)
+            text, secret_state, run_state, slot_name = self._parse_slot_value(value)
             if text:
-                filled.append((text, bool(secret_state), bool(run_state)))
+                filled.append((text, bool(secret_state), bool(run_state), slot_name))
 
         self.clear_slots()
         self._updating_slots = True
         try:
-            for text, secret_state, run_state in filled:
-                self.add_slot(text=text, secret=secret_state, run=run_state)
+            for text, secret_state, run_state, slot_name in filled:
+                self.add_slot(text=text, secret=secret_state, run=run_state, name=slot_name)
         finally:
             self._updating_slots = False
         self.ensure_trailing_empty_slot()
@@ -528,11 +539,18 @@ class KeyboardPasterApp(MDApp):
             text_input = self._slot_text_input(slot)
             if text_input is None or not text_input.text:
                 continue
+            name_input = self._slot_name_input(slot)
             secret_cb = self._slot_secret_checkbox(slot)
             execute_cb = self._slot_execute_checkbox(slot)
             secret_state = bool(secret_cb.active) if secret_cb is not None else False
             run_state = bool(execute_cb.active) if execute_cb is not None else False
-            profile_data[slot.text_input_id] = (text_input.text, secret_state, run_state)
+            slot_name = name_input.text.strip() if name_input is not None else ""
+            profile_data[slot.text_input_id] = (
+                text_input.text,
+                secret_state,
+                run_state,
+                slot_name,
+            )
 
         if not self.config:
             self.config = {'profiles': {}}
