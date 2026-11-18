@@ -64,6 +64,12 @@ SLOT_SPACING = int(dp(10))
 SLOT_AREA_PADDING_V = int(dp(16))  # container padding top+bottom
 MAX_WINDOW_HEIGHT = int(dp(720))
 
+# Per-profile settings keys (stored alongside input_text_* entries)
+PROFILE_START_DELAY = "start_delay"
+PROFILE_MOD_DELAY = "mod_delay"
+DEFAULT_START_DELAY = 2.0
+DEFAULT_MOD_DELAY = 0.1
+
 """
 SPECIAL_CHARS_SPACE = {
     'EN_US': {},
@@ -184,11 +190,28 @@ class KeyboardPasterApp(MDApp):
                 return child
         return None
 
+    @staticmethod
+    def _slot_execute_checkbox(slot):
+        for child in slot.children:
+            if isinstance(child, MDCheckbox) and getattr(child, "execute_checkbox", False):
+                return child
+        return None
+
+    @staticmethod
+    def _parse_slot_value(value):
+        """Return (text, secret, run) from legacy or current saved slot values."""
+        if isinstance(value, (list, tuple)):
+            text = value[0] if len(value) >= 1 else ""
+            secret = bool(value[1]) if len(value) >= 2 else False
+            run = bool(value[2]) if len(value) >= 3 else False
+            return text, secret, run
+        return value, False, False
+
     def _renumber_slots(self):
         for index, slot in enumerate(self._ordered_slots()):
             slot.text_input_id = f"input_text_{index}"
 
-    def add_slot(self, text: str = "", secret: bool = False):
+    def add_slot(self, text: str = "", secret: bool = False, run: bool = False):
         container = self._slot_container()
         index = len(container.children)
         slot = Factory.InputFieldButton()
@@ -197,6 +220,7 @@ class KeyboardPasterApp(MDApp):
 
         text_input = self._slot_text_input(slot)
         secret_cb = self._slot_secret_checkbox(slot)
+        execute_cb = self._slot_execute_checkbox(slot)
 
         previous = self._updating_slots
         self._updating_slots = True
@@ -206,6 +230,8 @@ class KeyboardPasterApp(MDApp):
                 text_input.password = bool(secret)
             if secret_cb is not None:
                 secret_cb.active = bool(secret)
+            if execute_cb is not None:
+                execute_cb.active = bool(run)
         finally:
             self._updating_slots = previous
 
@@ -382,6 +408,21 @@ class KeyboardPasterApp(MDApp):
         self.load_inputs()
         self.generate_profile_selector()
 
+    def _apply_profile_delays(self, profile_values):
+        start_delay = profile_values.get(PROFILE_START_DELAY, DEFAULT_START_DELAY)
+        mod_delay = profile_values.get(PROFILE_MOD_DELAY, DEFAULT_MOD_DELAY)
+        try:
+            start_delay = float(start_delay)
+        except (TypeError, ValueError):
+            start_delay = DEFAULT_START_DELAY
+        try:
+            mod_delay = float(mod_delay)
+        except (TypeError, ValueError):
+            mod_delay = DEFAULT_MOD_DELAY
+
+        self.root.ids["start_delay"].value = start_delay
+        self.root.ids["mod_delay"].value = round(mod_delay, 1)
+
     def load_inputs(self):
         profile_selector = self.root.ids['profile_selector']
         profile_name = profile_selector.text.strip()
@@ -389,6 +430,8 @@ class KeyboardPasterApp(MDApp):
         profile_values = {}
         if self.config and profile_name in self.config.get('profiles', {}):
             profile_values = self.config['profiles'][profile_name] or {}
+
+        self._apply_profile_delays(profile_values)
 
         def sort_key(item):
             key = item[0]
@@ -398,19 +441,18 @@ class KeyboardPasterApp(MDApp):
                 return 0
 
         filled = []
-        for _name, value in sorted(profile_values.items(), key=sort_key):
-            if isinstance(value, (list, tuple)) and len(value) >= 2:
-                text, secret_state = value[0], value[1]
-            else:
-                text, secret_state = value, False
+        for name, value in sorted(profile_values.items(), key=sort_key):
+            if not str(name).startswith("input_text_"):
+                continue
+            text, secret_state, run_state = self._parse_slot_value(value)
             if text:
-                filled.append((text, bool(secret_state)))
+                filled.append((text, bool(secret_state), bool(run_state)))
 
         self.clear_slots()
         self._updating_slots = True
         try:
-            for text, secret_state in filled:
-                self.add_slot(text=text, secret=secret_state)
+            for text, secret_state, run_state in filled:
+                self.add_slot(text=text, secret=secret_state, run=run_state)
         finally:
             self._updating_slots = False
         self.ensure_trailing_empty_slot()
@@ -420,20 +462,25 @@ class KeyboardPasterApp(MDApp):
         profile_selector = self.root.ids['profile_selector']
         profile_name = profile_selector.text.strip()
 
-        input_fields = {}
+        profile_data = {
+            PROFILE_START_DELAY: float(self.root.ids["start_delay"].value),
+            PROFILE_MOD_DELAY: round(float(self.root.ids["mod_delay"].value), 1),
+        }
         for slot in self._ordered_slots():
             text_input = self._slot_text_input(slot)
             if text_input is None or not text_input.text:
                 continue
             secret_cb = self._slot_secret_checkbox(slot)
+            execute_cb = self._slot_execute_checkbox(slot)
             secret_state = bool(secret_cb.active) if secret_cb is not None else False
-            input_fields[slot.text_input_id] = (text_input.text, secret_state)
+            run_state = bool(execute_cb.active) if execute_cb is not None else False
+            profile_data[slot.text_input_id] = (text_input.text, secret_state, run_state)
 
         if not self.config:
             self.config = {'profiles': {}}
         if 'profiles' not in self.config:
             self.config['profiles'] = {}
-        self.config['profiles'][profile_name] = input_fields
+        self.config['profiles'][profile_name] = profile_data
         self.write_config()
 
     def type_text(self, input_text, _checkbox):
